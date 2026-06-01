@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id="ProductName">ThumbsUp</String>
+  <String Id="WelcomeDlgDescription">Setup will guide you through the installation of the ThumbsUp shell extension. The installer registers the thumbnail provider for .epub files in File Explorer.</String>
+</WixLocalization>

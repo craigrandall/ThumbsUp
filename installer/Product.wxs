@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WiX 3.x authoring for the ThumbsUp installer.
+
+  Build:
+    candle.exe -arch x64 Product.wxs
+    light.exe  -ext WixUIExtension Product.wixobj -o ThumbsUp.msi
+
+  Important details that aren't obvious unless you've shipped a thumbnail
+  handler before:
+
+  * The DLL is registered via explicit <RegistryValue> elements rather than
+    by relying on `regsvr32` self-registration. WiX strongly discourages
+    SelfReg because the install transaction can't be rolled back cleanly
+    if regsvr32 fails. Explicit registry entries also let the installer
+    advertise the component for repair.
+
+  * The "Approved Shell Extensions" list (HKLM\...\Shell Extensions\Approved)
+    is what tells Explorer the extension is allowed to load. Without this
+    entry, our thumbnail provider is silently ignored.
+
+  * Both 64-bit and 32-bit registrations are recommended because some hosts
+    that invoke thumbnail providers are still 32-bit. This authoring covers
+    only x64; an x86 companion .wxs file would mirror the structure with
+    Win64="no" and a parallel Component for the 32-bit DLL.
+
+  * NewGuids() — the four GUIDs below (UpgradeCode, ProductId placeholder,
+    Component IDs) are deliberately fixed once and never regenerated, which
+    is what enables seamless upgrades. Replace the placeholders below with
+    fresh GUIDs the *first* time you build the installer; never change them
+    afterward.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product
+      Id="*"
+      Name="ThumbsUp"
+      Language="1033"
+      Version="0.1.0"
+      Manufacturer="Craig Randall"
+      UpgradeCode="6E3A1D7A-4BD3-4F5F-9C2C-3F1B2A8C9D01">
+
+    <Package
+        InstallerVersion="500"
+        Compressed="yes"
+        InstallScope="perMachine"
+        Description="Windows 11 File Explorer thumbnail handler for EPUB files"
+        Comments="Reads the cover image declared in the OPF package document." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+
+    <!-- The CLSID our DLL self-registers under. Must match clsid.rs. -->
+    <?define ProviderClsid = "{1C4E5C2A-7E51-4F1C-8B6D-AB12CDEF3456}" ?>
+    <!-- Standard Windows IThumbnailProvider GUID. -->
+    <?define ThumbnailHandlerKey = "{e357fccd-a995-4576-b01f-234630154e96}" ?>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLDIR" Name="ThumbsUp">
+
+          <!-- ============== The shell extension DLL ============== -->
+          <Component Id="cmpThumbnailerDll"
+                     Guid="9F1E0F7E-3D6C-4A2B-B0F9-1E2D8F5C7B11"
+                     Win64="yes">
+            <File Id="filThumbnailerDll"
+                  Name="thumbsup_shell.dll"
+                  Source="$(var.DllPath)"
+                  KeyPath="yes" />
+
+            <!-- COM CLSID registration -->
+            <RegistryKey Root="HKCR" Key="CLSID\$(var.ProviderClsid)">
+              <RegistryValue Type="string" Value="EPUB Thumbnail Provider" />
+            </RegistryKey>
+            <RegistryKey Root="HKCR" Key="CLSID\$(var.ProviderClsid)\InprocServer32">
+              <RegistryValue Type="string" Value="[#filThumbnailerDll]" />
+              <RegistryValue Type="string" Name="ThreadingModel" Value="Apartment" />
+            </RegistryKey>
+
+            <!-- Associate with .epub -->
+            <RegistryKey Root="HKCR" Key=".epub\ShellEx\$(var.ThumbnailHandlerKey)">
+              <RegistryValue Type="string" Value="$(var.ProviderClsid)" />
+            </RegistryKey>
+
+            <!-- Approve the extension so Explorer is permitted to load it. -->
+            <RegistryKey Root="HKLM"
+                         Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved">
+              <RegistryValue Type="string"
+                             Name="$(var.ProviderClsid)"
+                             Value="EPUB Thumbnail Provider" />
+            </RegistryKey>
+          </Component>
+
+          <!-- ============== The configuration GUI ============== -->
+          <Component Id="cmpConfigExe"
+                     Guid="B27D4F32-95E8-4D8A-A21B-4C5E6F7A8B99"
+                     Win64="yes">
+            <File Id="filConfigExe"
+                  Name="thumbsup-config.exe"
+                  Source="$(var.ConfigExePath)"
+                  KeyPath="yes" />
+          </Component>
+
+        </Directory>
+      </Directory>
+
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="ThumbsUp">
+          <Component Id="cmpStartMenuShortcut"
+                     Guid="C38A7B6E-2F19-4D3D-B4C8-9E2D8F1A4C50">
+            <Shortcut Id="ApplicationStartMenuShortcut"
+                      Name="ThumbsUp Settings"
+                      Description="Configure the EPUB thumbnail handler"
+                      Target="[INSTALLDIR]thumbsup-config.exe"
+                      WorkingDirectory="INSTALLDIR" />
+            <RemoveFolder Id="CleanUpStartMenuFolder"
+                          Directory="ApplicationProgramsFolder"
+                          On="uninstall" />
+            <RegistryValue Root="HKCU"
+                           Key="Software\ThumbsUp"
+                           Name="installed"
+                           Type="integer"
+                           Value="1"
+                           KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <Feature Id="MainFeature"
+             Title="ThumbsUp"
+             Level="1"
+             ConfigurableDirectory="INSTALLDIR">
+      <ComponentRef Id="cmpThumbnailerDll" />
+      <ComponentRef Id="cmpConfigExe" />
+      <ComponentRef Id="cmpStartMenuShortcut" />
+    </Feature>
+
+    <!-- Notify Explorer that file associations changed so thumbnails
+         refresh without requiring a logoff.
+         
+         ICE77 requires in-script custom actions to be sequenced
+         BETWEEN InstallInitialize and InstallFinalize (i.e. inside
+         the install transaction). Sequencing After="InstallFinalize"
+         places the action outside the transaction, which the WiX
+         linker correctly rejects. We sequence Before="InstallFinalize"
+         instead, which is the last available slot inside the
+         transaction and runs after every file has been committed to
+         disk — the moment the cache nudge becomes useful. -->
+    <CustomAction Id="NotifyShellAssocChanged"
+                  Directory="INSTALLDIR"
+                  ExeCommand="[SystemFolder]ie4uinit.exe -ClearIconCache"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="ignore" />
+
+    <InstallExecuteSequence>
+      <Custom Action="NotifyShellAssocChanged" Before="InstallFinalize">NOT REMOVE</Custom>
+    </InstallExecuteSequence>
+
+    <UI>
+      <UIRef Id="WixUI_InstallDir" />
+      <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+    </UI>
+
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+  </Product>
+</Wix>

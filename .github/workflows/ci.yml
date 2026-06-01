@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  # Run the cross-platform parsing tests on Linux. The DLL crate is gated
+  # behind cfg(windows) so it links to nothing on this runner — but we
+  # still cargo-check it to catch syntax errors early.
+  core-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo test (core)
+        run: cargo test -p thumbsup-core --all-features
+      - name: cargo clippy (core)
+        run: cargo clippy -p thumbsup-core -- -D warnings
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+
+  # Build the actual DLL and the GUI on a Windows runner. We don't run the
+  # DLL inside Explorer here, but we do cargo-check both crates with the
+  # MSVC toolchain to catch Windows-specific compile errors.
+  windows-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+      - name: Build DLL (release)
+        run: cargo build --release --target x86_64-pc-windows-msvc -p thumbsup-shell
+      - name: Build GUI (release)
+        run: cargo build --release --target x86_64-pc-windows-msvc -p thumbsup-config
+      - name: Upload artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-binaries
+          path: |
+            target/x86_64-pc-windows-msvc/release/thumbsup_shell.dll
+            target/x86_64-pc-windows-msvc/release/thumbsup-config.exe

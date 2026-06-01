@@ -1,0 +1,23 @@
+[package]
+name        = "thumbsup-core"
+version.workspace     = true
+edition.workspace     = true
+rust-version.workspace = true
+license.workspace     = true
+authors.workspace     = true
+repository.workspace  = true
+description = "EPUB cover-image extraction and image preparation for the EPUB thumbnail handler"
+
+[lib]
+name = "thumbsup_core"
+path = "src/lib.rs"
+
+[dependencies]
+zip       = { workspace = true }
+quick-xml = { workspace = true }
+image     = { workspace = true }
+thiserror = { workspace = true }
+log       = { workspace = true }
+
+[dev-dependencies]
+zip = { workspace = true, features = ["deflate"] }

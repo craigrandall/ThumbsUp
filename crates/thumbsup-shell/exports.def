@@ -1,0 +1,12 @@
+; thumbsup-shell.def — explicit DLL export list.
+; Using a .def file keeps the export table small and stable: the linker
+; emits *only* these names, no incidental Rust mangled symbols.
+
+LIBRARY thumbsup_shell
+
+EXPORTS
+    DllMain               PRIVATE
+    DllGetClassObject     PRIVATE
+    DllCanUnloadNow       PRIVATE
+    DllRegisterServer     PRIVATE
+    DllUnregisterServer   PRIVATE

@@ -1,0 +1,27 @@
+[package]
+name        = "thumbsup-config"
+version.workspace     = true
+edition.workspace     = true
+rust-version.workspace = true
+license.workspace     = true
+authors.workspace     = true
+repository.workspace  = true
+description = "GUI configuration tool for the ThumbsUp shell extension"
+default-run = "thumbsup-config"
+
+[[bin]]
+name = "thumbsup-config"
+path = "src/main.rs"
+
+[dependencies]
+thumbsup-core  = { path = "../thumbsup-core" }
+eframe     = { workspace = true }
+egui       = { workspace = true }
+serde      = { workspace = true }
+serde_json = { workspace = true }
+chrono     = { workspace = true }
+log        = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true }
+rfd     = { workspace = true }

@@ -1,0 +1,25 @@
+[package]
+name        = "thumbsup-shell"
+version.workspace     = true
+edition.workspace     = true
+rust-version.workspace = true
+license.workspace     = true
+authors.workspace     = true
+repository.workspace  = true
+description = "Windows shell extension DLL — IThumbnailProvider for .epub"
+
+[lib]
+name       = "thumbsup_shell"
+path       = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+thumbsup-core = { path = "../thumbsup-core" }
+log       = { workspace = true }
+
+# All Win32 APIs and the COM machinery are gated to Windows targets so that
+# `cargo check` on a non-Windows host (e.g. CI Linux runner running our core
+# tests) still resolves the workspace without trying to build them.
+[target.'cfg(windows)'.dependencies]
+windows      = { workspace = true }
+windows-core = { workspace = true }
