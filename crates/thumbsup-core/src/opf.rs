@@ -26,8 +26,8 @@ use quick_xml::Reader;
 /// thumbnail handler cares about.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManifestItem {
-    pub id:         String,
-    pub href:       String,
+    pub id: String,
+    pub href: String,
     pub media_type: String,
     /// Space-separated EPUB 3 properties. Empty in EPUB 2.
     pub properties: String,
@@ -36,7 +36,9 @@ pub struct ManifestItem {
 impl ManifestItem {
     /// True if this item declares the EPUB 3 `cover-image` property token.
     pub fn has_cover_image_property(&self) -> bool {
-        self.properties.split_whitespace().any(|p| p == "cover-image")
+        self.properties
+            .split_whitespace()
+            .any(|p| p == "cover-image")
     }
 
     /// True if the media type indicates a raster image format we can decode.
@@ -58,8 +60,8 @@ impl ManifestItem {
 #[derive(Debug, Clone, Default)]
 pub struct OpfPackage {
     /// Major version: 2, 3, or 0 if the version attribute is missing/unknown.
-    pub version_major:  u8,
-    pub manifest:       Vec<ManifestItem>,
+    pub version_major: u8,
+    pub manifest: Vec<ManifestItem>,
     /// Value of `<meta name="cover" content="…">` if present.
     pub meta_cover_idref: Option<String>,
     /// `<guide><reference type="cover" href="…"/>` href if present.
@@ -99,7 +101,7 @@ impl OpfPackage {
         let mut buf = Vec::new();
         let mut in_manifest = false;
         let mut in_metadata = false;
-        let mut in_guide    = false;
+        let mut in_guide = false;
 
         loop {
             match reader.read_event_into(&mut buf) {
@@ -116,7 +118,7 @@ impl OpfPackage {
                     }
                     b"manifest" => in_manifest = true,
                     b"metadata" => in_metadata = true,
-                    b"guide"    => in_guide    = true,
+                    b"guide" => in_guide = true,
                     b"item" if in_manifest => {
                         if let Some(item) = parse_manifest_item(&e)? {
                             pkg.manifest.push(item);
@@ -140,10 +142,12 @@ impl OpfPackage {
                         }
                         if let (Some(t), Some(h)) = (ref_type, ref_href) {
                             match t.as_str() {
-                                "cover" if pkg.guide_cover_href.is_none()
-                                    => pkg.guide_cover_href = Some(h),
-                                "thumbimagestandard" if pkg.guide_thumb_href.is_none()
-                                    => pkg.guide_thumb_href = Some(h),
+                                "cover" if pkg.guide_cover_href.is_none() => {
+                                    pkg.guide_cover_href = Some(h)
+                                }
+                                "thumbimagestandard" if pkg.guide_thumb_href.is_none() => {
+                                    pkg.guide_thumb_href = Some(h)
+                                }
                                 _ => {}
                             }
                         }
@@ -159,7 +163,7 @@ impl OpfPackage {
                                 .map_err(|_| EpubError::XmlParse("non-UTF-8 attr".into()))?
                                 .to_string();
                             match key {
-                                b"name"    => name    = Some(val),
+                                b"name" => name = Some(val),
                                 b"content" => content = Some(val),
                                 _ => {}
                             }
@@ -175,7 +179,7 @@ impl OpfPackage {
                 Ok(Event::End(e)) => match local_name(e.name().as_ref()) {
                     b"manifest" => in_manifest = false,
                     b"metadata" => in_metadata = false,
-                    b"guide"    => in_guide    = false,
+                    b"guide" => in_guide = false,
                     _ => {}
                 },
                 Ok(Event::Eof) => break,
@@ -243,8 +247,8 @@ fn parse_manifest_item(e: &quick_xml::events::BytesStart<'_>) -> Result<Option<M
             .map_err(|_| EpubError::XmlParse("non-UTF-8 attr".into()))?
             .to_string();
         match key {
-            b"id"         => id = val,
-            b"href"       => href = val,
+            b"id" => id = val,
+            b"href" => href = val,
             b"media-type" => media_type = val,
             b"properties" => properties = val,
             _ => {}
@@ -255,18 +259,26 @@ fn parse_manifest_item(e: &quick_xml::events::BytesStart<'_>) -> Result<Option<M
     if href.is_empty() {
         return Ok(None);
     }
-    Ok(Some(ManifestItem { id, href, media_type, properties }))
+    Ok(Some(ManifestItem {
+        id,
+        href,
+        media_type,
+        properties,
+    }))
 }
 
 fn local_name(qname: &[u8]) -> &[u8] {
     match qname.iter().rposition(|&b| b == b':') {
         Some(i) => &qname[i + 1..],
-        None    => qname,
+        None => qname,
     }
 }
 
 fn parse_version_major(v: &str) -> u8 {
-    v.split('.').next().and_then(|s| s.parse().ok()).unwrap_or(0)
+    v.split('.')
+        .next()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0)
 }
 
 /// Heuristic: does this href point at an image based purely on its
@@ -290,8 +302,10 @@ mod tests {
 
     fn item(id: &str, href: &str, mt: &str, props: &str) -> ManifestItem {
         ManifestItem {
-            id: id.into(), href: href.into(),
-            media_type: mt.into(), properties: props.into(),
+            id: id.into(),
+            href: href.into(),
+            media_type: mt.into(),
+            properties: props.into(),
         }
     }
 
@@ -348,7 +362,10 @@ mod tests {
   </manifest>
 </package>"#;
         let pkg = OpfPackage::parse(xml).unwrap();
-        assert_eq!(pkg.resolve_cover(CoverPolicy::Strict).unwrap().href, "new.jpg");
+        assert_eq!(
+            pkg.resolve_cover(CoverPolicy::Strict).unwrap().href,
+            "new.jpg"
+        );
     }
 
     #[test]
@@ -363,7 +380,10 @@ mod tests {
   </manifest>
 </package>"#;
         let pkg = OpfPackage::parse(xml).unwrap();
-        assert_eq!(pkg.resolve_cover(CoverPolicy::Strict).unwrap().href, "y.jpg");
+        assert_eq!(
+            pkg.resolve_cover(CoverPolicy::Strict).unwrap().href,
+            "y.jpg"
+        );
     }
 
     #[test]
@@ -377,7 +397,10 @@ mod tests {
   </manifest>
 </package>"#;
         let pkg = OpfPackage::parse(xml).unwrap();
-        assert_eq!(pkg.resolve_cover(CoverPolicy::Strict).unwrap().href, "cover.png");
+        assert_eq!(
+            pkg.resolve_cover(CoverPolicy::Strict).unwrap().href,
+            "cover.png"
+        );
     }
 
     #[test]
@@ -391,9 +414,14 @@ mod tests {
   </manifest>
 </package>"#;
         let pkg = OpfPackage::parse(xml).unwrap();
-        assert!(matches!(pkg.resolve_cover(CoverPolicy::Strict), Err(EpubError::NoCover)));
+        assert!(matches!(
+            pkg.resolve_cover(CoverPolicy::Strict),
+            Err(EpubError::NoCover)
+        ));
         assert_eq!(
-            pkg.resolve_cover(CoverPolicy::FirstImageFallback).unwrap().href,
+            pkg.resolve_cover(CoverPolicy::FirstImageFallback)
+                .unwrap()
+                .href,
             "figure.png"
         );
     }
@@ -410,7 +438,10 @@ mod tests {
   </manifest>
 </package>"#;
         let pkg = OpfPackage::parse(xml).unwrap();
-        assert_eq!(pkg.resolve_cover(CoverPolicy::Strict).unwrap().href, "real.jpg");
+        assert_eq!(
+            pkg.resolve_cover(CoverPolicy::Strict).unwrap().href,
+            "real.jpg"
+        );
     }
 
     #[test]
@@ -423,7 +454,10 @@ mod tests {
   </manifest>
 </package>"#;
         let pkg = OpfPackage::parse(xml).unwrap();
-        assert!(matches!(pkg.resolve_cover(CoverPolicy::Strict), Err(EpubError::NoCover)));
+        assert!(matches!(
+            pkg.resolve_cover(CoverPolicy::Strict),
+            Err(EpubError::NoCover)
+        ));
         assert!(matches!(
             pkg.resolve_cover(CoverPolicy::FirstImageFallback),
             Err(EpubError::NoCover)
@@ -442,7 +476,10 @@ mod tests {
 </package>"#;
         let pkg = OpfPackage::parse(xml).unwrap();
         assert_eq!(pkg.manifest.len(), 1);
-        assert_eq!(pkg.resolve_cover(CoverPolicy::Strict).unwrap().href, "c.jpg");
+        assert_eq!(
+            pkg.resolve_cover(CoverPolicy::Strict).unwrap().href,
+            "c.jpg"
+        );
     }
 
     #[test]
@@ -458,8 +495,8 @@ mod tests {
     fn supported_image_types() {
         assert!(item("a", "x.jpg", "image/jpeg", "").is_supported_image());
         assert!(item("a", "x.JPG", "IMAGE/JPEG", "").is_supported_image());
-        assert!(item("a", "x.png", "image/png",  "").is_supported_image());
-        assert!(item("a", "x.gif", "image/gif",  "").is_supported_image());
+        assert!(item("a", "x.png", "image/png", "").is_supported_image());
+        assert!(item("a", "x.gif", "image/gif", "").is_supported_image());
         assert!(!item("a", "x.svg", "image/svg+xml", "").is_supported_image());
         assert!(!item("a", "x.html", "application/xhtml+xml", "").is_supported_image());
     }
@@ -467,7 +504,10 @@ mod tests {
     #[test]
     fn malformed_opf_returns_xml_parse_error() {
         let xml = b"<package version=\"3.0\"><manifest><item id=";
-        assert!(matches!(OpfPackage::parse(xml), Err(EpubError::XmlParse(_))));
+        assert!(matches!(
+            OpfPackage::parse(xml),
+            Err(EpubError::XmlParse(_))
+        ));
     }
 
     // ---------- guide element parsing (DarkThumbs Issue #9 lessons) ----------
@@ -506,7 +546,10 @@ mod tests {
 </package>"#;
         let pkg = OpfPackage::parse(xml).unwrap();
         assert_eq!(pkg.guide_cover_href.as_deref(), Some("OEBPS/cvi.htm"));
-        assert_eq!(pkg.guide_thumb_href.as_deref(), Some("OEBPS/images/cvt.jpg"));
+        assert_eq!(
+            pkg.guide_thumb_href.as_deref(),
+            Some("OEBPS/images/cvt.jpg")
+        );
     }
 
     #[test]
@@ -534,7 +577,7 @@ mod tests {
         assert!(!href_looks_like_image("cover.html"));
         assert!(!href_looks_like_image("cover"));
         assert!(!href_looks_like_image(""));
-        assert!(!href_looks_like_image("cover.svg"));  // we don't decode SVG
+        assert!(!href_looks_like_image("cover.svg")); // we don't decode SVG
         assert!(!href_looks_like_image("cover.webp")); // not in whitelist
     }
 }

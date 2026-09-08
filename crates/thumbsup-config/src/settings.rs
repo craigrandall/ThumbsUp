@@ -14,7 +14,7 @@ pub enum FallbackPolicy {
 impl FallbackPolicy {
     pub fn as_dword(self) -> u32 {
         match self {
-            FallbackPolicy::Strict     => 0,
+            FallbackPolicy::Strict => 0,
             FallbackPolicy::FirstImage => 1,
         }
     }
@@ -26,7 +26,7 @@ impl FallbackPolicy {
     }
     pub fn label(self) -> &'static str {
         match self {
-            FallbackPolicy::Strict     => "Strict (spec-compliant only)",
+            FallbackPolicy::Strict => "Strict (spec-compliant only)",
             FallbackPolicy::FirstImage => "First image in archive",
         }
     }
@@ -45,12 +45,12 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            enabled:          true,
-            max_file_mb:      256,
+            enabled: true,
+            max_file_mb: 256,
             max_thumbnail_ms: 5_000,
-            fallback_policy:  FallbackPolicy::Strict,
-            logging_enabled:  false,
-            log_path:         String::new(),
+            fallback_policy: FallbackPolicy::Strict,
+            logging_enabled: false,
+            log_path: String::new(),
         }
     }
 }

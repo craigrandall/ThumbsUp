@@ -66,7 +66,7 @@ pub fn first_img_src(xhtml: &[u8]) -> Result<String> {
 fn local_name(qname: &[u8]) -> &[u8] {
     match qname.iter().rposition(|&b| b == b':') {
         Some(i) => &qname[i + 1..],
-        None    => qname,
+        None => qname,
     }
 }
 

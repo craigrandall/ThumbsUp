@@ -70,7 +70,9 @@ fn write_to_debugger(line: &str) {
     // Convert to UTF-16 with terminating NUL.
     let mut wide: Vec<u16> = tagged.encode_utf16().collect();
     wide.push(0);
-    unsafe { OutputDebugStringW(PCWSTR(wide.as_ptr())); }
+    unsafe {
+        OutputDebugStringW(PCWSTR(wide.as_ptr()));
+    }
 }
 
 fn resolve_log_path(cfg: &Config) -> PathBuf {
@@ -79,7 +81,9 @@ fn resolve_log_path(cfg: &Config) -> PathBuf {
     }
     // Default: %LOCALAPPDATA%\ThumbsUp\diagnostics.log
     if let Ok(local) = std::env::var("LOCALAPPDATA") {
-        return PathBuf::from(local).join("ThumbsUp").join("diagnostics.log");
+        return PathBuf::from(local)
+            .join("ThumbsUp")
+            .join("diagnostics.log");
     }
     PathBuf::from("thumbsup-shell.log")
 }
@@ -109,9 +113,9 @@ fn epoch_to_civil(secs: u64) -> (i32, u32, u32, u32, u32, u32) {
     let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
     let y = if m <= 2 { y + 1 } else { y };
     let day_secs = secs % 86400;
-    let h  = (day_secs / 3600) as u32;
+    let h = (day_secs / 3600) as u32;
     let mi = ((day_secs % 3600) / 60) as u32;
-    let s  = (day_secs % 60) as u32;
+    let s = (day_secs % 60) as u32;
     (y as i32, m, d, h, mi, s)
 }
 

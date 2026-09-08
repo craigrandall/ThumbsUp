@@ -16,9 +16,9 @@ use zip::ZipWriter;
 /// Builder for a single in-memory EPUB. Methods are chainable.
 pub struct EpubBuilder {
     container_xml: Option<Vec<u8>>,
-    opf_path:      String,
-    opf_xml:       Option<Vec<u8>>,
-    files:         Vec<(String, Vec<u8>)>,
+    opf_path: String,
+    opf_xml: Option<Vec<u8>>,
+    files: Vec<(String, Vec<u8>)>,
     skip_mimetype: bool,
 }
 
@@ -30,9 +30,9 @@ impl EpubBuilder {
     pub fn new() -> Self {
         Self {
             container_xml: None,
-            opf_path:      "OEBPS/content.opf".into(),
-            opf_xml:       None,
-            files:         Vec::new(),
+            opf_path: "OEBPS/content.opf".into(),
+            opf_xml: None,
+            files: Vec::new(),
             skip_mimetype: false,
         }
     }
@@ -107,7 +107,8 @@ pub fn standard_container() -> Vec<u8> {
   <rootfiles>
     <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
   </rootfiles>
-</container>"#.to_vec()
+</container>"#
+        .to_vec()
 }
 
 /// A small synthetic PNG of the requested dimensions and solid color.
@@ -122,8 +123,7 @@ pub fn solid_png(w: u32, h: u32, color: [u8; 4]) -> Vec<u8> {
 
 /// A small synthetic JPEG of the requested dimensions and solid color.
 pub fn solid_jpeg(w: u32, h: u32, color: [u8; 3]) -> Vec<u8> {
-    let img: ImageBuffer<image::Rgb<u8>, _> =
-        ImageBuffer::from_fn(w, h, |_, _| image::Rgb(color));
+    let img: ImageBuffer<image::Rgb<u8>, _> = ImageBuffer::from_fn(w, h, |_, _| image::Rgb(color));
     let mut out = Vec::new();
     image::DynamicImage::ImageRgb8(img)
         .write_to(&mut Cursor::new(&mut out), ImageFormat::Jpeg)

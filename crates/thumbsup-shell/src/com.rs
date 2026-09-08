@@ -18,16 +18,13 @@ use std::time::Duration;
 
 use thumbsup_core::extract_cover_with_deadline;
 use windows::core::{implement, IUnknown, Interface, Result as WResult, GUID};
-use windows::Win32::Foundation::{
-    BOOL, CLASS_E_NOAGGREGATION, E_FAIL, E_NOINTERFACE, E_POINTER,
-};
+use windows::Win32::Foundation::{BOOL, CLASS_E_NOAGGREGATION, E_FAIL, E_NOINTERFACE, E_POINTER};
 use windows::Win32::Graphics::Gdi::HBITMAP;
 use windows::Win32::System::Com::{IClassFactory, IClassFactory_Impl, IStream};
 use windows::Win32::UI::Shell::PropertiesSystem::IInitializeWithStream;
 use windows::Win32::UI::Shell::PropertiesSystem::IInitializeWithStream_Impl;
 use windows::Win32::UI::Shell::{
-    IThumbnailProvider, IThumbnailProvider_Impl, WTSAT_ARGB, WTS_ALPHATYPE,
-    WTS_E_FAILEDEXTRACTION,
+    IThumbnailProvider, IThumbnailProvider_Impl, WTSAT_ARGB, WTS_ALPHATYPE, WTS_E_FAILEDEXTRACTION,
 };
 
 use crate::bitmap::create_hbitmap;
@@ -47,7 +44,7 @@ pub struct EpubThumbnailProvider {
 
 struct Inner {
     /// Bytes of the EPUB read from the stream during `Initialize`.
-    bytes:  Option<Vec<u8>>,
+    bytes: Option<Vec<u8>>,
     /// Snapshot of the registry config, captured at `Initialize` time so
     /// the same policy is used for the matching `GetThumbnail`.
     config: Config,
@@ -58,7 +55,7 @@ impl EpubThumbnailProvider {
         OBJECT_COUNT.fetch_add(1, Ordering::SeqCst);
         EpubThumbnailProvider {
             inner: Mutex::new(Inner {
-                bytes:  None,
+                bytes: None,
                 config: Config::default(),
             }),
         }
@@ -81,8 +78,11 @@ impl IInitializeWithStream_Impl for EpubThumbnailProvider_Impl {
             return Err(windows::core::Error::from(WTS_E_FAILEDEXTRACTION));
         }
         let bytes = read_stream(stream, cfg.max_file_bytes)?;
-        let mut g = self.inner.lock().map_err(|_| windows::core::Error::from(E_FAIL))?;
-        g.bytes  = Some(bytes);
+        let mut g = self
+            .inner
+            .lock()
+            .map_err(|_| windows::core::Error::from(E_FAIL))?;
+        g.bytes = Some(bytes);
         g.config = cfg;
         Ok(())
     }
@@ -100,13 +100,22 @@ impl IThumbnailProvider_Impl for EpubThumbnailProvider_Impl {
         }
 
         let (bytes, cfg) = {
-            let g = self.inner.lock().map_err(|_| windows::core::Error::from(E_FAIL))?;
-            let b = g.bytes.clone().ok_or_else(|| windows::core::Error::from(E_FAIL))?;
+            let g = self
+                .inner
+                .lock()
+                .map_err(|_| windows::core::Error::from(E_FAIL))?;
+            let b = g
+                .bytes
+                .clone()
+                .ok_or_else(|| windows::core::Error::from(E_FAIL))?;
             (b, g.config.clone())
         };
 
         match extract_cover_with_deadline(
-            &bytes, cx, cfg.cover_policy, cfg.max_file_bytes,
+            &bytes,
+            cx,
+            cfg.cover_policy,
+            cfg.max_file_bytes,
             // Map the user-configured millisecond budget into a Duration.
             // Zero means "no timeout"; any positive value enforces it.
             if cfg.max_thumbnail_ms == 0 {
@@ -118,7 +127,7 @@ impl IThumbnailProvider_Impl for EpubThumbnailProvider_Impl {
             Ok(extracted) => {
                 let hbmp = create_hbitmap(&extracted.thumbnail)?;
                 unsafe {
-                    *phbmp    = hbmp;
+                    *phbmp = hbmp;
                     *pdwalpha = WTSAT_ARGB;
                 }
                 log_event(
@@ -186,7 +195,9 @@ impl IClassFactory_Impl for ClassFactory_Impl {
         if ppvobject.is_null() {
             return Err(windows::core::Error::from(E_POINTER));
         }
-        unsafe { *ppvobject = std::ptr::null_mut(); }
+        unsafe {
+            *ppvobject = std::ptr::null_mut();
+        }
 
         // Build the provider, then QueryInterface to whatever Explorer asked for.
         let provider: IInitializeWithStream = EpubThumbnailProvider::new().into();

@@ -23,34 +23,25 @@ pub fn create_hbitmap(thumb: &Thumbnail) -> WResult<HBITMAP> {
 
     let bmi = BITMAPINFO {
         bmiHeader: BITMAPINFOHEADER {
-            biSize:        std::mem::size_of::<BITMAPINFOHEADER>() as u32,
-            biWidth:       thumb.width as i32,
+            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: thumb.width as i32,
             // Negative height = top-down DIB. Our pixel buffer is also
             // top-down, so the two match without an extra flip.
-            biHeight:      -(thumb.height as i32),
-            biPlanes:      1,
-            biBitCount:    32,
+            biHeight: -(thumb.height as i32),
+            biPlanes: 1,
+            biBitCount: 32,
             biCompression: BI_RGB.0 as u32,
-            biSizeImage:   0,
+            biSizeImage: 0,
             biXPelsPerMeter: 0,
             biYPelsPerMeter: 0,
-            biClrUsed:     0,
+            biClrUsed: 0,
             biClrImportant: 0,
         },
         bmiColors: [RGBQUAD::default()],
     };
 
     let mut bits: *mut c_void = std::ptr::null_mut();
-    let hbmp = unsafe {
-        CreateDIBSection(
-            None,
-            &bmi,
-            DIB_RGB_COLORS,
-            &mut bits,
-            None,
-            0,
-        )?
-    };
+    let hbmp = unsafe { CreateDIBSection(None, &bmi, DIB_RGB_COLORS, &mut bits, None, 0)? };
 
     if hbmp.is_invalid() || bits.is_null() {
         return Err(E_FAIL.into());

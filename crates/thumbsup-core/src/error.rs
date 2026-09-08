@@ -77,18 +77,18 @@ impl EpubError {
     /// view. Never localized.
     pub fn category(&self) -> &'static str {
         match self {
-            EpubError::MalformedZip(_)        => "malformed-zip",
-            EpubError::MissingContainer       => "missing-container",
-            EpubError::NoRootfile             => "no-rootfile",
-            EpubError::MissingOpf(_)          => "missing-opf",
-            EpubError::XmlParse(_)            => "xml-parse",
-            EpubError::NoCover                => "no-cover",
-            EpubError::CoverFileMissing(_)    => "cover-file-missing",
-            EpubError::PathTraversal(_)       => "path-traversal",
-            EpubError::ImageDecode(_)         => "image-decode",
-            EpubError::TooLarge { .. }        => "too-large",
+            EpubError::MalformedZip(_) => "malformed-zip",
+            EpubError::MissingContainer => "missing-container",
+            EpubError::NoRootfile => "no-rootfile",
+            EpubError::MissingOpf(_) => "missing-opf",
+            EpubError::XmlParse(_) => "xml-parse",
+            EpubError::NoCover => "no-cover",
+            EpubError::CoverFileMissing(_) => "cover-file-missing",
+            EpubError::PathTraversal(_) => "path-traversal",
+            EpubError::ImageDecode(_) => "image-decode",
+            EpubError::TooLarge { .. } => "too-large",
             EpubError::DeadlineExceeded { .. } => "deadline-exceeded",
-            EpubError::Io(_)                  => "io",
+            EpubError::Io(_) => "io",
         }
     }
 }

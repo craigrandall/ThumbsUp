@@ -21,9 +21,8 @@ fn cache_dir() -> Option<PathBuf> {
 /// are simply skipped. The user can run this again after restarting
 /// Explorer to clear them.
 pub fn clear_thumbnail_cache() -> std::io::Result<usize> {
-    let dir = cache_dir().ok_or_else(|| {
-        std::io::Error::new(std::io::ErrorKind::NotFound, "LOCALAPPDATA not set")
-    })?;
+    let dir = cache_dir()
+        .ok_or_else(|| std::io::Error::new(std::io::ErrorKind::NotFound, "LOCALAPPDATA not set"))?;
     let mut removed = 0;
     if let Ok(entries) = std::fs::read_dir(&dir) {
         for entry in entries.flatten() {

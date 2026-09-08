@@ -12,16 +12,21 @@ const NO_LIMIT: u64 = u64::MAX;
 #[test]
 fn extracts_cover_from_epub3() {
     let bytes = epub3_with_cover_image_property();
-    let result = extract_cover(&bytes, 256, CoverPolicy::Strict, NO_LIMIT)
-        .expect("should extract");
+    let result = extract_cover(&bytes, 256, CoverPolicy::Strict, NO_LIMIT).expect("should extract");
     assert_eq!(result.report.epub_version_major, 3);
     assert_eq!(result.report.strategy, "epub3-cover-image");
-    assert_eq!(result.report.cover_path.as_deref(), Some("OEBPS/images/cover.jpg"));
-    assert_eq!(result.report.cover_media_type.as_deref(), Some("image/jpeg"));
+    assert_eq!(
+        result.report.cover_path.as_deref(),
+        Some("OEBPS/images/cover.jpg")
+    );
+    assert_eq!(
+        result.report.cover_media_type.as_deref(),
+        Some("image/jpeg")
+    );
     // 800x1200 fitted into 256 → 256 high, ~170 wide.
     assert!(result.thumbnail.height <= 256);
-    assert!(result.thumbnail.width  <= 256);
-    assert!(result.thumbnail.width  > 0);
+    assert!(result.thumbnail.width <= 256);
+    assert!(result.thumbnail.width > 0);
     assert!(result.thumbnail.height > 0);
     assert_eq!(result.thumbnail.byte_len(), result.thumbnail.pixels.len());
 }
@@ -29,8 +34,7 @@ fn extracts_cover_from_epub3() {
 #[test]
 fn extracts_cover_from_epub2() {
     let bytes = epub2_with_meta_cover();
-    let result = extract_cover(&bytes, 256, CoverPolicy::Strict, NO_LIMIT)
-        .expect("should extract");
+    let result = extract_cover(&bytes, 256, CoverPolicy::Strict, NO_LIMIT).expect("should extract");
     assert_eq!(result.report.epub_version_major, 2);
     assert_eq!(result.report.strategy, "epub2-meta-cover");
     assert_eq!(result.report.cover_path.as_deref(), Some("OEBPS/cover.png"));
@@ -87,7 +91,10 @@ fn first_image_fallback_kicks_in_only_with_policy() {
     let lenient = extract_cover(&bytes, 256, CoverPolicy::FirstImageFallback, NO_LIMIT)
         .expect("fallback should succeed");
     assert_eq!(lenient.report.strategy, "first-image-fallback");
-    assert_eq!(lenient.report.cover_path.as_deref(), Some("OEBPS/figure.png"));
+    assert_eq!(
+        lenient.report.cover_path.as_deref(),
+        Some("OEBPS/figure.png")
+    );
 }
 
 #[test]
@@ -116,9 +123,7 @@ fn missing_opf_is_categorized() {
 <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
   <rootfiles><rootfile full-path="OEBPS/ghost.opf" media-type="application/oebps-package+xml"/></rootfiles>
 </container>"#;
-    let bytes = EpubBuilder::new()
-        .container_xml(container.to_vec())
-        .build();
+    let bytes = EpubBuilder::new().container_xml(container.to_vec()).build();
     let err = extract_cover(&bytes, 256, CoverPolicy::Strict, NO_LIMIT).unwrap_err();
     assert!(matches!(err.0, EpubError::MissingOpf(_)));
 }
@@ -207,7 +212,10 @@ fn nested_opf_resolves_relative_href() {
         .add_file("OEBPS/images/cover.jpg", cover)
         .build();
     let result = extract_cover(&bytes, 256, CoverPolicy::Strict, NO_LIMIT).unwrap();
-    assert_eq!(result.report.cover_path.as_deref(), Some("OEBPS/images/cover.jpg"));
+    assert_eq!(
+        result.report.cover_path.as_deref(),
+        Some("OEBPS/images/cover.jpg")
+    );
 }
 
 #[test]
@@ -244,7 +252,7 @@ fn extraction_is_deterministic() {
     let bytes = epub3_with_cover_image_property();
     let a = extract_cover(&bytes, 96, CoverPolicy::Strict, NO_LIMIT).unwrap();
     let b = extract_cover(&bytes, 96, CoverPolicy::Strict, NO_LIMIT).unwrap();
-    assert_eq!(a.thumbnail.width,  b.thumbnail.width);
+    assert_eq!(a.thumbnail.width, b.thumbnail.width);
     assert_eq!(a.thumbnail.height, b.thumbnail.height);
     assert_eq!(a.thumbnail.pixels, b.thumbnail.pixels);
 }
@@ -256,8 +264,16 @@ fn varying_thumbnail_sizes_all_succeed() {
     for size in [32, 64, 96, 128, 256, 512, 1024] {
         let r = extract_cover(&bytes, size, CoverPolicy::Strict, NO_LIMIT)
             .unwrap_or_else(|e| panic!("size {size} failed: {:?}", e.0));
-        assert!(r.thumbnail.width  <= size, "size {size}: w={}", r.thumbnail.width);
-        assert!(r.thumbnail.height <= size, "size {size}: h={}", r.thumbnail.height);
+        assert!(
+            r.thumbnail.width <= size,
+            "size {size}: w={}",
+            r.thumbnail.width
+        );
+        assert!(
+            r.thumbnail.height <= size,
+            "size {size}: h={}",
+            r.thumbnail.height
+        );
     }
 }
 
@@ -306,7 +322,7 @@ fn darkthumbs_issue9_case2_random_house_guide_xhtml_wrapper() {
         .opf_xml(opf.to_vec())
         .add_file("OEBPS/cvi.htm", cvi_html.to_vec())
         .add_file("OEBPS/images/f001.jpg", solid_jpeg(40, 60, [99, 99, 99]))
-        .add_file("OEBPS/images/cvt.jpg", cover)  // the *correct* cover
+        .add_file("OEBPS/images/cvt.jpg", cover) // the *correct* cover
         .add_file("OEBPS/images/tp.jpg", solid_jpeg(40, 60, [99, 99, 99]))
         .build();
 
@@ -416,13 +432,19 @@ fn darkthumbs_priority_guide_beats_first_image() {
     let bytes = EpubBuilder::new()
         .container_xml(standard_container())
         .opf_xml(opf.to_vec())
-        .add_file("OEBPS/images/illustration1.jpg", solid_jpeg(40, 60, [9, 9, 9]))
+        .add_file(
+            "OEBPS/images/illustration1.jpg",
+            solid_jpeg(40, 60, [9, 9, 9]),
+        )
         .add_file("OEBPS/images/real_cover.jpg", cover)
         .build();
     // Even with the permissive policy, guide must win.
     let r = extract_cover(&bytes, 256, CoverPolicy::FirstImageFallback, NO_LIMIT).unwrap();
     assert_eq!(r.report.strategy, "guide-cover-image");
-    assert_eq!(r.report.cover_path.as_deref(), Some("OEBPS/images/real_cover.jpg"));
+    assert_eq!(
+        r.report.cover_path.as_deref(),
+        Some("OEBPS/images/real_cover.jpg")
+    );
 }
 
 #[test]
@@ -455,7 +477,10 @@ fn darkthumbs_xhtml_wrapper_with_relative_path() {
         .build();
     let r = extract_cover(&bytes, 256, CoverPolicy::Strict, NO_LIMIT).unwrap();
     assert_eq!(r.report.strategy, "guide-cover-xhtml");
-    assert_eq!(r.report.cover_path.as_deref(), Some("OEBPS/images/cover.jpg"));
+    assert_eq!(
+        r.report.cover_path.as_deref(),
+        Some("OEBPS/images/cover.jpg")
+    );
 }
 
 #[test]
@@ -474,7 +499,10 @@ fn darkthumbs_xhtml_wrapper_with_no_img_falls_through() {
     let bytes = EpubBuilder::new()
         .container_xml(standard_container())
         .opf_xml(opf.to_vec())
-        .add_file("OEBPS/cover.xhtml", b"<html><body><p>nope</p></body></html>".to_vec())
+        .add_file(
+            "OEBPS/cover.xhtml",
+            b"<html><body><p>nope</p></body></html>".to_vec(),
+        )
         .build();
     let err = extract_cover(&bytes, 256, CoverPolicy::Strict, NO_LIMIT).unwrap_err();
     assert!(matches!(err.0, EpubError::NoCover));
@@ -508,7 +536,10 @@ fn darkthumbs_issue9_case2_non_standard_opf_filename() {
         .add_file("OEBPS/images/cvt_r1.jpg", cover)
         .build();
     let r = extract_cover(&bytes, 256, CoverPolicy::Strict, NO_LIMIT).unwrap();
-    assert_eq!(r.report.cover_path.as_deref(), Some("OEBPS/images/cvt_r1.jpg"));
+    assert_eq!(
+        r.report.cover_path.as_deref(),
+        Some("OEBPS/images/cvt_r1.jpg")
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -545,7 +576,8 @@ fn icaros_issue212_non_ascii_filename_in_zip_central_directory() {
     // 封面 = "cover" in Chinese. Resolve via UTF-8 bytes since OPFs are
     // UTF-8 encoded by spec.
     let chinese_cover_filename = "OEBPS/images/封面.jpg";
-    let opf_xml = String::from_utf8(opf.to_vec()).unwrap()
+    let opf_xml = String::from_utf8(opf.to_vec())
+        .unwrap()
         .replace(r"\xe5\xb0\x81\xe9\x9d\xa2", "封面");
     let bytes = EpubBuilder::new()
         .container_xml(standard_container())
@@ -566,9 +598,13 @@ fn icaros_issue196_deadline_check_aborts_slow_extraction() {
     // trips — a deterministic test that doesn't depend on wall-clock.
     let bytes = epub3_with_cover_image_property();
     let err = extract_cover_with_deadline(
-        &bytes, 256, CoverPolicy::Strict, NO_LIMIT,
+        &bytes,
+        256,
+        CoverPolicy::Strict,
+        NO_LIMIT,
         Some(std::time::Duration::ZERO),
-    ).unwrap_err();
+    )
+    .unwrap_err();
     assert!(matches!(err.0, EpubError::DeadlineExceeded { .. }));
     assert_eq!(err.0.category(), "deadline-exceeded");
 }
@@ -578,9 +614,13 @@ fn icaros_issue196_generous_deadline_does_not_interfere() {
     // A deadline far longer than the work should never trip.
     let bytes = epub3_with_cover_image_property();
     let r = extract_cover_with_deadline(
-        &bytes, 256, CoverPolicy::Strict, NO_LIMIT,
+        &bytes,
+        256,
+        CoverPolicy::Strict,
+        NO_LIMIT,
         Some(std::time::Duration::from_secs(60)),
-    ).expect("60s deadline must not trip on a tiny synthetic EPUB");
+    )
+    .expect("60s deadline must not trip on a tiny synthetic EPUB");
     assert_eq!(r.report.strategy, "epub3-cover-image");
 }
 

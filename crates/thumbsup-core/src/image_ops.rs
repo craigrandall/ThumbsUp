@@ -19,7 +19,7 @@ use image::{DynamicImage, GenericImageView, ImageFormat};
 ///   centring is performed by the shell.
 #[derive(Clone, Debug)]
 pub struct Thumbnail {
-    pub width:  u32,
+    pub width: u32,
     pub height: u32,
     pub pixels: Vec<u8>,
 }
@@ -40,8 +40,7 @@ impl Thumbnail {
 pub fn decode_cover(bytes: &[u8]) -> Result<DynamicImage> {
     // Sniff the format from the magic bytes rather than trusting the
     // declared media-type, since some EPUBs lie about it.
-    let format = image::guess_format(bytes)
-        .map_err(|e| EpubError::ImageDecode(e.to_string()))?;
+    let format = image::guess_format(bytes).map_err(|e| EpubError::ImageDecode(e.to_string()))?;
     match format {
         ImageFormat::Jpeg | ImageFormat::Png | ImageFormat::Gif => {}
         other => {
@@ -86,13 +85,17 @@ pub fn to_bgra8(img: DynamicImage) -> Thumbnail {
         pixels.push(px[0]); // R
         pixels.push(px[3]); // A
     }
-    Thumbnail { width, height, pixels }
+    Thumbnail {
+        width,
+        height,
+        pixels,
+    }
 }
 
 /// Convenience: decode → fit → convert in one call. This is what the
 /// shell extension actually uses.
 pub fn prepare_thumbnail(bytes: &[u8], max_side: u32) -> Result<Thumbnail> {
-    let img    = decode_cover(bytes)?;
+    let img = decode_cover(bytes)?;
     let fitted = fit_into(img, max_side);
     Ok(to_bgra8(fitted))
 }
@@ -104,8 +107,7 @@ mod tests {
 
     /// Build a tiny PNG in-memory for testing without committing fixtures.
     fn synth_png(w: u32, h: u32, color: [u8; 4]) -> Vec<u8> {
-        let img: ImageBuffer<Rgba<u8>, _> =
-            ImageBuffer::from_fn(w, h, |_, _| Rgba(color));
+        let img: ImageBuffer<Rgba<u8>, _> = ImageBuffer::from_fn(w, h, |_, _| Rgba(color));
         let mut out = Vec::new();
         image::DynamicImage::ImageRgba8(img)
             .write_to(&mut std::io::Cursor::new(&mut out), ImageFormat::Png)
@@ -140,7 +142,10 @@ mod tests {
     #[test]
     fn decode_rejects_garbage() {
         let bytes = b"not an image at all";
-        assert!(matches!(decode_cover(bytes), Err(EpubError::ImageDecode(_))));
+        assert!(matches!(
+            decode_cover(bytes),
+            Err(EpubError::ImageDecode(_))
+        ));
     }
 
     #[test]

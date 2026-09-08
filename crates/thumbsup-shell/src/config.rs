@@ -41,12 +41,12 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            enabled:          true,
-            max_file_bytes:   256 * 1024 * 1024, // 256 MiB
+            enabled: true,
+            max_file_bytes: 256 * 1024 * 1024, // 256 MiB
             max_thumbnail_ms: 5_000,
-            cover_policy:     CoverPolicy::Strict,
-            logging_enabled:  false,
-            log_path:         String::new(),
+            cover_policy: CoverPolicy::Strict,
+            logging_enabled: false,
+            log_path: String::new(),
         }
     }
 }
@@ -74,19 +74,31 @@ impl Config {
             return cfg;
         }
 
-        if let Some(v) = read_dword(hkey, "Enabled")          { cfg.enabled = v != 0; }
-        if let Some(v) = read_qword(hkey, "MaxFileBytes")     { cfg.max_file_bytes = v; }
-        if let Some(v) = read_dword(hkey, "MaxThumbnailMs")   { cfg.max_thumbnail_ms = v; }
+        if let Some(v) = read_dword(hkey, "Enabled") {
+            cfg.enabled = v != 0;
+        }
+        if let Some(v) = read_qword(hkey, "MaxFileBytes") {
+            cfg.max_file_bytes = v;
+        }
+        if let Some(v) = read_dword(hkey, "MaxThumbnailMs") {
+            cfg.max_thumbnail_ms = v;
+        }
         if let Some(v) = read_dword(hkey, "FallbackPolicy") {
             cfg.cover_policy = match v {
                 1 => CoverPolicy::FirstImageFallback,
                 _ => CoverPolicy::Strict,
             };
         }
-        if let Some(v) = read_dword(hkey, "LoggingEnabled")   { cfg.logging_enabled = v != 0; }
-        if let Some(s) = read_string(hkey, "LogPath")         { cfg.log_path = s; }
+        if let Some(v) = read_dword(hkey, "LoggingEnabled") {
+            cfg.logging_enabled = v != 0;
+        }
+        if let Some(s) = read_string(hkey, "LogPath") {
+            cfg.log_path = s;
+        }
 
-        unsafe { let _ = RegCloseKey(hkey); }
+        unsafe {
+            let _ = RegCloseKey(hkey);
+        }
         cfg
     }
 }
@@ -174,6 +186,8 @@ fn read_string(hkey: HKEY, name: &str) -> Option<String> {
         return None;
     }
     // Trim trailing NULs.
-    while buf.last() == Some(&0) { buf.pop(); }
+    while buf.last() == Some(&0) {
+        buf.pop();
+    }
     String::from_utf16(&buf).ok()
 }

@@ -21,7 +21,7 @@ pub fn parse_container_xml(xml: &[u8]) -> Result<String> {
 
     let mut buf = Vec::new();
     let mut first_rootfile: Option<String> = None;
-    let mut opf_rootfile:   Option<String> = None;
+    let mut opf_rootfile: Option<String> = None;
 
     loop {
         match reader.read_event_into(&mut buf) {
@@ -36,7 +36,7 @@ pub fn parse_container_xml(xml: &[u8]) -> Result<String> {
                             .map_err(|_| EpubError::XmlParse("non-UTF-8 attribute".into()))?
                             .to_string();
                         match key {
-                            b"full-path"  => full_path  = Some(val),
+                            b"full-path" => full_path = Some(val),
                             b"media-type" => media_type = Some(val),
                             _ => {}
                         }
@@ -58,16 +58,14 @@ pub fn parse_container_xml(xml: &[u8]) -> Result<String> {
         buf.clear();
     }
 
-    opf_rootfile
-        .or(first_rootfile)
-        .ok_or(EpubError::NoRootfile)
+    opf_rootfile.or(first_rootfile).ok_or(EpubError::NoRootfile)
 }
 
 /// Strip XML-namespace prefix (`ns:tag` → `tag`).
 fn local_name(qname: &[u8]) -> &[u8] {
     match qname.iter().rposition(|&b| b == b':') {
         Some(i) => &qname[i + 1..],
-        None    => qname,
+        None => qname,
     }
 }
 
@@ -123,12 +121,18 @@ mod tests {
     #[test]
     fn errors_on_no_rootfile() {
         let xml = br#"<?xml version="1.0"?><container><rootfiles/></container>"#;
-        assert!(matches!(parse_container_xml(xml), Err(EpubError::NoRootfile)));
+        assert!(matches!(
+            parse_container_xml(xml),
+            Err(EpubError::NoRootfile)
+        ));
     }
 
     #[test]
     fn errors_on_malformed_xml() {
         let xml = b"<container><rootfile full-path=";
-        assert!(matches!(parse_container_xml(xml), Err(EpubError::XmlParse(_))));
+        assert!(matches!(
+            parse_container_xml(xml),
+            Err(EpubError::XmlParse(_))
+        ));
     }
 }

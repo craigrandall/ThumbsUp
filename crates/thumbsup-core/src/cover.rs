@@ -50,20 +50,26 @@ const MAX_ARCHIVE_ENTRIES: usize = 50_000;
 /// [Discussion #106]: https://github.com/Xanashi/Icaros/issues/106
 #[derive(Debug, Clone, Copy)]
 struct Deadline {
-    start:  Instant,
+    start: Instant,
     budget: Duration,
 }
 
 impl Deadline {
     fn new(budget: Duration) -> Self {
-        Self { start: Instant::now(), budget }
+        Self {
+            start: Instant::now(),
+            budget,
+        }
     }
 
     /// "No deadline" — used by the simple `extract_cover` entry point and
     /// by the test suite where deterministic behavior is preferred over
     /// wall-clock semantics.
     fn unlimited() -> Self {
-        Self { start: Instant::now(), budget: Duration::from_secs(86_400) }
+        Self {
+            start: Instant::now(),
+            budget: Duration::from_secs(86_400),
+        }
     }
 
     fn check(&self) -> std::result::Result<(), EpubError> {
@@ -71,7 +77,7 @@ impl Deadline {
         if elapsed > self.budget {
             return Err(EpubError::DeadlineExceeded {
                 elapsed_ms: elapsed.as_millis() as u64,
-                limit_ms:   self.budget.as_millis() as u64,
+                limit_ms: self.budget.as_millis() as u64,
             });
         }
         Ok(())
@@ -99,7 +105,7 @@ pub struct ExtractionReport {
 #[derive(Debug)]
 pub struct ExtractedCover {
     pub thumbnail: Thumbnail,
-    pub report:    ExtractionReport,
+    pub report: ExtractionReport,
 }
 
 /// Extract a cover from in-memory EPUB bytes and produce a thumbnail
@@ -142,7 +148,7 @@ pub fn extract_cover_with_deadline(
 ) -> std::result::Result<ExtractedCover, (EpubError, ExtractionReport)> {
     let deadline = match max_duration {
         Some(d) => Deadline::new(d),
-        None    => Deadline::unlimited(),
+        None => Deadline::unlimited(),
     };
     extract_inner(bytes, max_side, policy, size_limit, deadline)
 }
@@ -168,12 +174,17 @@ fn extract_inner(
 
     if (bytes.len() as u64) > size_limit {
         return Err(report_err(
-            EpubError::TooLarge { size: bytes.len() as u64, limit: size_limit },
+            EpubError::TooLarge {
+                size: bytes.len() as u64,
+                limit: size_limit,
+            },
             "size-limit",
         ));
     }
 
-    deadline.check().map_err(|e| report_err(e, "deadline-pre-zip"))?;
+    deadline
+        .check()
+        .map_err(|e| report_err(e, "deadline-pre-zip"))?;
 
     // 1. Open ZIP.
     let mut archive = zip::ZipArchive::new(Cursor::new(bytes))
@@ -192,8 +203,8 @@ fn extract_inner(
     }
 
     // 2. Locate and parse META-INF/container.xml.
-    let container_bytes = read_archive_file(&mut archive, "META-INF/container.xml")
-        .map_err(|e| {
+    let container_bytes =
+        read_archive_file(&mut archive, "META-INF/container.xml").map_err(|e| {
             let strategy = if matches!(e, EpubError::CoverFileMissing(_)) {
                 "container-missing"
             } else {
@@ -207,23 +218,27 @@ fn extract_inner(
             };
             report_err(err, strategy)
         })?;
-    deadline.check().map_err(|e| report_err(e, "deadline-post-container"))?;
-    let opf_path = parse_container_xml(&container_bytes)
-        .map_err(|e| report_err(e, "container-parse"))?;
+    deadline
+        .check()
+        .map_err(|e| report_err(e, "deadline-post-container"))?;
+    let opf_path =
+        parse_container_xml(&container_bytes).map_err(|e| report_err(e, "container-parse"))?;
 
     // 3. Read and parse the OPF.
-    let opf_bytes = read_archive_file(&mut archive, &opf_path)
-        .map_err(|e| {
-            let err = match e {
-                EpubError::CoverFileMissing(_) => EpubError::MissingOpf(opf_path.clone()),
-                other => other,
-            };
-            report_err(err, "opf-read")
-        })?;
-    deadline.check().map_err(|e| report_err(e, "deadline-post-opf-read"))?;
-    let pkg = OpfPackage::parse(&opf_bytes)
-        .map_err(|e| report_err(e, "opf-parse"))?;
-    deadline.check().map_err(|e| report_err(e, "deadline-post-opf-parse"))?;
+    let opf_bytes = read_archive_file(&mut archive, &opf_path).map_err(|e| {
+        let err = match e {
+            EpubError::CoverFileMissing(_) => EpubError::MissingOpf(opf_path.clone()),
+            other => other,
+        };
+        report_err(err, "opf-read")
+    })?;
+    deadline
+        .check()
+        .map_err(|e| report_err(e, "deadline-post-opf-read"))?;
+    let pkg = OpfPackage::parse(&opf_bytes).map_err(|e| report_err(e, "opf-parse"))?;
+    deadline
+        .check()
+        .map_err(|e| report_err(e, "deadline-post-opf-parse"))?;
 
     // ------------------------------------------------------------------
     // Cover-resolution priority. Order matters and is documented here so
@@ -249,15 +264,17 @@ fn extract_inner(
     if let Ok(item) = pkg.resolve_cover(CoverPolicy::Strict) {
         let path = match resolve_href(&opf_dir, &item.href) {
             Ok(p) => p,
-            Err(e) => return Err((
-                e,
-                ExtractionReport {
-                    epub_version_major: pkg.version_major,
-                    strategy: "path-traversal",
-                    cover_path: Some(item.href.clone()),
-                    cover_media_type: Some(item.media_type.clone()),
-                },
-            )),
+            Err(e) => {
+                return Err((
+                    e,
+                    ExtractionReport {
+                        epub_version_major: pkg.version_major,
+                        strategy: "path-traversal",
+                        cover_path: Some(item.href.clone()),
+                        cover_media_type: Some(item.media_type.clone()),
+                    },
+                ))
+            }
         };
         found = Some((path, item.media_type.clone(), classify_strategy(&pkg, item)));
     }
@@ -384,7 +401,10 @@ fn classify_strategy(pkg: &OpfPackage, item: &ManifestItem) -> &'static str {
         "epub3-cover-image"
     } else if pkg.meta_cover_idref.as_deref() == Some(item.id.as_str()) {
         "epub2-meta-cover"
-    } else if matches!(item.id.as_str(), "cover" | "cover-image" | "ci" | "coverimage") {
+    } else if matches!(
+        item.id.as_str(),
+        "cover" | "cover-image" | "ci" | "coverimage"
+    ) {
         "conventional-id"
     } else {
         "first-image-fallback"
