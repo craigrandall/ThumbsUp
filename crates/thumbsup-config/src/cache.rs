@@ -28,13 +28,12 @@ pub fn clear_thumbnail_cache() -> std::io::Result<usize> {
         for entry in entries.flatten() {
             let name = entry.file_name();
             let name = name.to_string_lossy();
-            if name.starts_with("thumbcache_") && name.ends_with(".db") {
-                if std::fs::remove_file(entry.path()).is_ok() {
+            if name.starts_with("thumbcache_") && name.ends_with(".db")
+                && std::fs::remove_file(entry.path()).is_ok() {
                     removed += 1;
                 }
-                // Files in use will fail to delete; that's fine.
-            }
-            if name.starts_with("iconcache_") && name.ends_with(".db") {
+                // Files in use will fail to delete; that's fine.			
+           if name.starts_with("iconcache_") && name.ends_with(".db") {
                 let _ = std::fs::remove_file(entry.path());
             }
         }

@@ -116,14 +116,10 @@ pub struct ExtractedCover {
 /// [`extract_cover_with_deadline`] instead so a malformed or
 /// pathologically slow EPUB cannot stall Windows Explorer.
 ///
-/// * `bytes`     — the full EPUB contents.
-/// * `max_side`  — longest side (in pixels) the resulting thumbnail
-///                 should occupy. The shell typically requests 32, 96,
-///                 256, or 1024.
-/// * `policy`    — whether to fall back to "first image in manifest"
-///                 when no compliant cover declaration is found.
-/// * `size_limit` — refuse to process EPUBs larger than this. Pass
-///                 `u64::MAX` to disable.
+/// - `bytes` — the full EPUB contents.
+/// - `max_side` — longest side (in pixels) the resulting thumbnail should occupy. The shell typically requests 32, 96, 256, or 1024.
+/// - `policy` — whether to fall back to "first image in manifest" when no compliant cover declaration is found.
+/// - `size_limit` — refuse to process EPUBs larger than this. Pass `u64::MAX` to disable.
 pub fn extract_cover(
     bytes: &[u8],
     max_side: u32,

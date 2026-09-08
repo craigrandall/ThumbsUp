@@ -66,6 +66,7 @@ pub extern "system" fn DllMain(hinstance: HINSTANCE, reason: u32, _reserved: *mu
 
 /// COM entry point: hand out an `IClassFactory` for our CLSID.
 #[no_mangle]
+#[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "system" fn DllGetClassObject(
     rclsid: *const GUID,
     riid: *const GUID,

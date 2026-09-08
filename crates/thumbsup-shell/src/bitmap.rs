@@ -30,7 +30,7 @@ pub fn create_hbitmap(thumb: &Thumbnail) -> WResult<HBITMAP> {
             biHeight: -(thumb.height as i32),
             biPlanes: 1,
             biBitCount: 32,
-            biCompression: BI_RGB.0 as u32,
+            biCompression: BI_RGB.0,
             biSizeImage: 0,
             biXPelsPerMeter: 0,
             biYPelsPerMeter: 0,

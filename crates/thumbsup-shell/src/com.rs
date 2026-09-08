@@ -62,6 +62,12 @@ impl EpubThumbnailProvider {
     }
 }
 
+impl Default for EpubThumbnailProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Drop for EpubThumbnailProvider {
     fn drop(&mut self) {
         OBJECT_COUNT.fetch_sub(1, Ordering::SeqCst);
@@ -172,6 +178,12 @@ impl ClassFactory {
     pub fn new() -> Self {
         OBJECT_COUNT.fetch_add(1, Ordering::SeqCst);
         ClassFactory
+    }
+}
+
+impl Default for ClassFactory {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
