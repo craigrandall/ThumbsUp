@@ -142,8 +142,7 @@ pub fn unregister(scope: Scope) -> std::io::Result<()> {
         // Restore the original handler.
         if let Ok(k) = open_create(
             classes_root,
-            assoc_full
-                .trim_start_matches(&format!("{classes_path}\\")),
+            assoc_full.trim_start_matches(&format!("{classes_path}\\")),
         ) {
             let _ = set_default_string(k, &previous);
             close(k);
