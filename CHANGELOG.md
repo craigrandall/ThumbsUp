@@ -4,11 +4,30 @@ All notable changes to this project are recorded here. Versions follow
 [Semantic Versioning](https://semver.org/). Unreleased changes are
 recorded under the next planned version.
 
+---
+
+## [v0.1.0] - 2026-09-09
+
+### Added
+
+- Initial public release of ThumbsUp EPUB thumbnail provider
+- Windows shell extension DLL
+- Configuration GUI application
+- MSI installer
+
+### Fixed
+
+- All clippy warnings resolved
+- CI workflow improvements
+- Release workflow standardization
+
+---
+
 ## [0.1.0] — Unreleased
 
 Initial public-shaped release. The project went through multiple
 analysis-driven iterations before stabilising on this set of features
-and tests; the entries below summarise the deltas from the original
+and tests; the entries below summarize the deltas from the original
 55-test cut.
 
 ### Renamed
