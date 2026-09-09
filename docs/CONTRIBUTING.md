@@ -38,7 +38,26 @@ For building the installer:
 
 WiX 4 is not currently supported because the installer authoring is written for WiX 3.
 
-See [`docs/INSTALL.md`](docs/INSTALL.md) for the detailed development-environment setup.
+See [`docs/INSTALL.md`](INSTALL.md) for the detailed development-environment setup.
+
+## Quick Start
+
+If you are working on the EPUB parsing core, the shortest path from clone to a verified change is:
+
+```powershell
+git clone https://github.com/craigrandall/ThumbsUp.git
+cd ThumbsUp
+
+cargo fmt --all
+cargo clippy -p thumbsup-core -- -D warnings
+cargo test -p thumbsup-core --all-features
+```
+
+If all three commands pass, you have a clean starting point for core development.
+
+For Windows shell-extension or configuration-GUI work, you will also need the Windows development prerequisites described in [`docs/INSTALL.md`](INSTALL.md), including the MSVC toolchain and Windows SDK. After making a Windows-specific change, run the corresponding Windows verification commands in §6.
+
+For a broader pre-PR check, run the complete applicable verification for the area you changed rather than relying only on the quick-start commands.
 
 ## 2. Project Structure
 
@@ -93,13 +112,10 @@ Keep module responsibilities clear. In particular, prefer keeping EPUB parsing a
    git checkout -b feature/<short-name>
    ```
 
-4. **Implement the change.**
-
-   Favor:
+4. **Implement changes** with:
 
    - Clear separation of concerns.
-   - Strong typing.
-   - Explicit error handling.
+   - Strong typing and explicit error handling.
    - Small, testable functions.
    - Defensive handling of untrusted EPUB content.
    - Behavior supported by specifications, evidence, or clearly documented project policy.
@@ -110,18 +126,9 @@ Keep module responsibilities clear. In particular, prefer keeping EPUB parsing a
 
    In particular, changes to EPUB parsing or cover resolution should include representative fixtures and edge cases rather than relying solely on manual testing.
 
-6. **Run the local verification sequence.**
+6. **Run the applicable verification.**
 
-   At minimum:
-
-   ```powershell
-   cargo fmt --all
-   cargo clippy --all-targets --all-features -- -D warnings
-   cargo test --workspace --all-features
-   cargo build --release
-   ```
-
-   Windows-specific changes should also be built and tested using the Windows MSVC target.
+   See §6 Testing and §10 Continuous Integration for the commands corresponding to the project's CI checks.
 
 7. **Review the resulting changes.**
 
@@ -134,16 +141,12 @@ Keep module responsibilities clear. In particular, prefer keeping EPUB parsing a
 
    Confirm that generated files, local configuration, diagnostic output, binaries, and unrelated changes have not been included.
 
-8. **Submit a pull request.**
+8. **Submit a pull request** with:
 
-   The pull request should explain:
-
-   - What changed.
-   - Why the change is needed.
-   - How the implementation works at an appropriate level.
-   - What tests were added or changed.
-   - What verification was performed.
-   - Any compatibility, security, performance, or behavioral implications.
+   - Clear description of changes.
+   - Rationale for the approach.
+   - Notes on any new configuration or behavioral changes.
+   - Tests and verification performed.
 
 ## 4. Coding Standards
 
@@ -231,34 +234,60 @@ Testing is particularly important because ThumbsUp processes files supplied to W
 
 ### Core tests
 
-Run:
+The core CI verification uses:
 
 ```powershell
-cargo test -p thumbsup-core
+cargo fmt --all -- --check
+cargo clippy -p thumbsup-core -- -D warnings
+cargo check -p thumbsup-core
+cargo test -p thumbsup-core --all-features
 ```
+
+To automatically format your changes during development, use:
+
+```powershell
+cargo fmt --all
+```
+
+Then use the `--check` form before submitting the change.
 
 The core test suite covers EPUB 2 and EPUB 3 behavior, malformed inputs, path traversal, image-format handling, guide fallbacks, non-ASCII filenames, deadline enforcement, and end-to-end extraction.
 
 When changing parsing or cover resolution, prefer adding a focused regression test or fixture rather than relying only on manual inspection.
 
+### Windows tests
+
+Windows-specific CI verifies the shell extension and configuration GUI using the stable MSVC target.
+
+The corresponding local commands are:
+
+```powershell
+cargo fmt --all -- --check
+
+cargo clippy -p thumbsup-shell -- -D warnings
+cargo clippy -p thumbsup-config -- -D warnings
+
+cargo check -p thumbsup-shell --target x86_64-pc-windows-msvc
+cargo check -p thumbsup-config --target x86_64-pc-windows-msvc
+
+cargo test -p thumbsup-shell -- --nocapture
+cargo test -p thumbsup-config -- --nocapture
+
+cargo build --release --target x86_64-pc-windows-msvc -p thumbsup-shell
+cargo build --release --target x86_64-pc-windows-msvc -p thumbsup-config
+```
+
+For changes affecting the Windows shell extension or configuration GUI, also perform the relevant manual verification described in `docs/INSTALL.md`.
+
 ### Workspace tests
 
-Run:
+You may also run the complete workspace test suite locally:
 
 ```powershell
 cargo test --workspace --all-features
 ```
 
-### Windows tests
-
-Windows-specific crates should be tested on Windows:
-
-```powershell
-cargo test -p thumbsup-shell
-cargo test -p thumbsup-config
-```
-
-For changes affecting the Windows shell extension or configuration GUI, also perform the relevant manual verification described in `docs/INSTALL.md`.
+This is useful as an additional check, but it is **not the exact command used by CI**. The CI workflow intentionally verifies the workspace components separately according to their platform responsibilities.
 
 ### Test principles
 
@@ -284,7 +313,7 @@ The shell extension parses untrusted EPUB content while executing inside Explore
 - Time spent processing a thumbnail.
 - Windows COM and ABI boundaries.
 
-Read [`docs/SECURITY.md`](docs/SECURITY.md) before making security-sensitive changes.
+Read [`docs/SECURITY.md`](SECURITY.md) before making security-sensitive changes.
 
 Potential security vulnerabilities should **not** be disclosed publicly in an issue before they have been evaluated. Follow the repository's security policy for responsible disclosure.
 
@@ -358,11 +387,11 @@ Understanding the problem domain makes AI assistance more useful and makes it po
 
 ThumbsUp uses GitHub Actions for automated verification.
 
-### Core verification
-
 The CI workflow runs on pushes to `main` and pull requests targeting `main`.
 
-The core verification runs on Linux and includes:
+### Core verification
+
+The cross-platform core is verified on Linux with:
 
 ```powershell
 cargo fmt --all -- --check
@@ -373,17 +402,58 @@ cargo test -p thumbsup-core --all-features
 
 ### Windows verification
 
-The Windows CI job uses the stable Rust MSVC toolchain and verifies:
+The Windows CI job uses the stable Rust MSVC toolchain and `x86_64-pc-windows-msvc`.
 
-- Formatting.
-- `thumbsup-shell` Clippy checks.
-- `thumbsup-config` Clippy checks.
-- Windows-target compilation.
-- Shell-extension tests.
-- Configuration-GUI tests.
-- Release builds of the shell extension and configuration GUI.
+It verifies:
+
+```powershell
+cargo fmt --all -- --check
+
+cargo clippy -p thumbsup-shell -- -D warnings
+cargo clippy -p thumbsup-config -- -D warnings
+
+cargo check -p thumbsup-shell --target x86_64-pc-windows-msvc
+cargo check -p thumbsup-config --target x86_64-pc-windows-msvc
+
+cargo test -p thumbsup-shell -- --nocapture
+cargo test -p thumbsup-config -- --nocapture
+
+cargo build --release --target x86_64-pc-windows-msvc -p thumbsup-shell
+cargo build --release --target x86_64-pc-windows-msvc -p thumbsup-config
+```
 
 A pull request should be expected to pass both the core and Windows verification jobs.
+
+### Local verification versus CI
+
+The commands above intentionally mirror CI.
+
+`cargo fmt --all` is useful during development because it modifies source files to apply formatting. CI instead uses:
+
+```powershell
+cargo fmt --all -- --check
+```
+
+because CI must verify formatting without modifying the checkout.
+
+Likewise, CI uses package-specific Clippy, test, check, and build commands rather than one broad workspace command. This makes the platform-specific verification contract explicit.
+
+Additional local checks are welcome, including:
+
+```powershell
+cargo test --workspace --all-features
+cargo build --release
+```
+
+but passing additional commands does not replace the CI checks.
+
+### Release verification
+
+The release workflow performs Windows verification again when a `v*` tag is pushed. It additionally builds the MSI installer and release artifacts.
+
+Therefore, contributors should not assume that a successful Linux/core build alone is sufficient to validate a Windows release.
+
+For release-specific development, use the Windows environment and follow the release workflow's verification requirements.
 
 ## 11. Releases
 
