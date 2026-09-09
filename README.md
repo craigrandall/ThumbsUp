@@ -182,6 +182,15 @@ no Explorer restart required.
 
 See `docs/SECURITY.md` for the full threat model.
 
+
+## Contributing
+
+Contributions are welcome. See `docs/CONTRIBUTING.md` for more details.
+
+**Pull Request Requirements**: All PRs must pass the CI workflow checks 
+(formatting, linting, tests, build). The workflow runs automatically on PR 
+creation and updates.
+
 ## License
 
 Dual-licensed under MIT or Apache-2.0, at your option. See
