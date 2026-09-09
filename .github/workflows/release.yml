@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'   # Matches v1.0.0, v0.1.0, etc.
 
+permissions:
+  contents: write
+
 env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-D warnings"
@@ -92,6 +95,24 @@ jobs:
           & $signCmd target\x86_64-pc-windows-msvc\release\thumbsup-config.exe
         env:
           SIGNTOOL_AVAILABLE: ${{ secrets.SIGNTOOL_AVAILABLE || 'false' }}
+
+      - name: Delete existing release (if any)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            try {
+              await github.rest.repos.deleteRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: (await github.rest.repos.getReleaseByTag({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  tag: context.ref.replace('refs/tags/', '')
+                })).data.id
+              });
+            } catch (e) {
+              // Ignore if release doesn't exist
+            }
 
       # === PUBLISH TO GITHUB RELEASES ===
       - name: Publish Release
