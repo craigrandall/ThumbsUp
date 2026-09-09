@@ -42,8 +42,9 @@ jobs:
       - name: Check Rust version
         shell: pwsh
         run: |
+          $versionString = (rustc --version) -split '\s+' | Select-Object -Index 1
           $minVersion = [version]"1.74.0"
-          $currentVersion = [version]((rustc --version) -replace '^rustc ', '')
+          $currentVersion = [version]$versionString
           if ($currentVersion -lt $minVersion) {
               Write-Error "Rust 1.74+ required"
               exit 1
