@@ -13,42 +13,55 @@ jobs:
   build-release:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae115
+      - name: Checkout repository
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Needed for git describe to work
 
-      - uses: dtolnay/rust-toolchain@977e7f1b2b0c242651928398477e36a2055f4ab1
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
+          toolchain: stable
           targets: x86_64-pc-windows-msvc
+          components: clippy, rustfmt
 
-      - uses: Swatinem/rust-cache@5486d62c659792644383f8c9540391c609771d2
+      - name: Cache dependencies
+        uses: actions/cache@v6
         with:
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', '**/rust-toolchain.toml') }}
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
 
       # === VERIFICATION (same as CI, ensures tag is good) ===
       - name: Check Rust version
         shell: pwsh
         run: rustc --version | Select-String -Pattern "1\.(7[4-9]|[8-9][0-9])" -Quiet || (Write-Error "Rust 1.74+ required"; exit 1)
 
-      - name: cargo fmt
+      - name: Check formatting
         run: cargo fmt --all -- --check
 
-      - name: cargo clippy (core)
+      - name: Lint with Clippy (core)
         run: cargo clippy -p thumbsup-core -- -D warnings
 
-      - name: cargo clippy (shell)
+      - name: Lint with Clippy (shell)
         run: cargo clippy -p thumbsup-shell -- -D warnings
 
-      - name: cargo clippy (config)
+      - name: Lint with Clippy (config)
         run: cargo clippy -p thumbsup-config -- -D warnings
 
-      - name: cargo test (core)
+      - name: Run tests (core)
         run: cargo test -p thumbsup-core --all-features
 
-      - name: cargo test (shell)
+      - name: Run tests (shell)
         run: cargo test -p thumbsup-shell -- --nocapture
 
-      - name: cargo test (config)
+      - name: Run tests (config)
         run: cargo test -p thumbsup-config -- --nocapture
 
       # === BUILD RELEASE ARTIFACTS ===
@@ -75,7 +88,7 @@ jobs:
 
       # === PUBLISH TO GITHUB RELEASES ===
       - name: Publish Release
-        uses: softprops/action-gh-release@de2c02891d8b158c806c75a79873e488535b0b79
+        uses: softprops/action-gh-release@v1
         with:
           name: ThumbsUp ${{ github.ref_name }}
           body: |
