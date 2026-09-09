@@ -41,7 +41,13 @@ jobs:
       # === VERIFICATION (same as CI, ensures tag is good) ===
       - name: Check Rust version
         shell: pwsh
-        run: rustc --version | Select-String -Pattern "1\.(7[4-9]|[8-9][0-9])" -Quiet || (Write-Error "Rust 1.74+ required"; exit 1)
+        run: |
+          $minVersion = [version]"1.74.0"
+          $currentVersion = [version]((rustc --version) -replace '^rustc ', '')
+          if ($currentVersion -lt $minVersion) {
+              Write-Error "Rust 1.74+ required"
+              exit 1
+          }
 
       - name: Check formatting
         run: cargo fmt --all -- --check
