@@ -95,7 +95,7 @@ jobs:
 
       # === PUBLISH TO GITHUB RELEASES ===
       - name: Publish Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: ThumbsUp ${{ github.ref_name }}
           body: |
