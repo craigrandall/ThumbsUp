@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  attestations: write
+  id-token: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -84,17 +86,37 @@ jobs:
       - name: Build MSI
         run: .\scripts\build-installer.ps1
 
-      # === SIGN ARTIFACTS (if configured) ===
-      - name: Sign binaries
-        if: env.SIGNTOOL_AVAILABLE == 'true'
+      # === INTEGRITY, IN LIEU OF CODE SIGNING ===
+      # ThumbsUp is not code-signed -- see docs/SIGNING.md for why and
+      # current status. These two steps are the real, working substitute:
+      # a published checksum file, and a cryptographic build-provenance
+      # attestation (Sigstore-backed, free, verifiable via
+      # `gh attestation verify`). Neither of these satisfies SmartScreen
+      # or Authenticode trust -- they prove integrity/provenance, not
+      # publisher identity -- but both are genuine guarantees, unlike
+      # the previous no-op signing step this replaced.
+      - name: Generate checksums
         shell: pwsh
         run: |
-          $signCmd = 'signtool sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /a'
-          & $signCmd ThumbsUp.msi
-          & $signCmd target\x86_64-pc-windows-msvc\release\thumbsup_shell.dll
-          & $signCmd target\x86_64-pc-windows-msvc\release\thumbsup-config.exe
-        env:
-          SIGNTOOL_AVAILABLE: ${{ secrets.SIGNTOOL_AVAILABLE || 'false' }}
+          $files = @(
+            "ThumbsUp.msi",
+            "target\x86_64-pc-windows-msvc\release\thumbsup_shell.dll",
+            "target\x86_64-pc-windows-msvc\release\thumbsup-config.exe"
+          )
+          $lines = foreach ($f in $files) {
+              $hash = (Get-FileHash -Algorithm SHA256 $f).Hash.ToLower()
+              "$hash  $(Split-Path -Leaf $f)"
+          }
+          $lines | Out-File -FilePath SHA256SUMS.txt -Encoding ascii
+          Get-Content SHA256SUMS.txt
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            ThumbsUp.msi
+            target/x86_64-pc-windows-msvc/release/thumbsup_shell.dll
+            target/x86_64-pc-windows-msvc/release/thumbsup-config.exe
 
       - name: Delete existing release (if any)
         uses: actions/github-script@v7
@@ -127,10 +149,16 @@ jobs:
             - `ThumbsUp.msi` - Windows installer
             - `thumbsup_shell.dll` - Shell extension DLL
             - `thumbsup-config.exe` - Configuration GUI
+            - `SHA256SUMS.txt` - Checksums for the three files above
+
+            **Not code-signed** -- see [docs/SIGNING.md](https://github.com/craigrandall/thumbsup/blob/${{ github.ref_name }}/docs/SIGNING.md)
+            for why, current status, and how to verify integrity via the
+            checksums above or this release's build-provenance attestation.
           files: |
             ThumbsUp.msi
             target/x86_64-pc-windows-msvc/release/thumbsup_shell.dll
             target/x86_64-pc-windows-msvc/release/thumbsup-config.exe
+            SHA256SUMS.txt
             README.md
             CHANGELOG.md
             LICENSE-MIT

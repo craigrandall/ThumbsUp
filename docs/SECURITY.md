@@ -178,6 +178,8 @@ extensions face SmartScreen friction and are blocked outright by some
 enterprise policies. Signing is out of scope for the build system but
 the `scripts\build-installer.ps1` includes the signtool invocation.
 
+See `docs\SIGNING.md` for project code signing strategy details.
+
 ## Out of scope
 
 * Defending against a compromised installation directory. If an attacker
