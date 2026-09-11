@@ -52,3 +52,4 @@ Invoke-Native light.exe @(
 
 Write-Host "==> Done. Output: ThumbsUp.msi"
 Write-Host "    Sign with: signtool.exe sign /fd SHA256 /a ThumbsUp.msi"
+# See `docs\SIGNING.md` for project code signing strategy details.
