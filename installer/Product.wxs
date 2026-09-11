@@ -112,7 +112,9 @@
                       Name="ThumbsUp Settings"
                       Description="Configure the EPUB thumbnail handler"
                       Target="[INSTALLDIR]thumbsup-config.exe"
-                      WorkingDirectory="INSTALLDIR" />
+                      WorkingDirectory="INSTALLDIR"
+                      Icon="ThumbsUpIcon.ico"
+                      IconIndex="0" />
             <RemoveFolder Id="CleanUpStartMenuFolder"
                           Directory="ApplicationProgramsFolder"
                           On="uninstall" />
@@ -157,6 +159,22 @@
     <InstallExecuteSequence>
       <Custom Action="NotifyShellAssocChanged" Before="InstallFinalize">NOT REMOVE</Custom>
     </InstallExecuteSequence>
+
+    <!-- ===== Custom installer branding =====
+         Assets live in installer\branding\ and are resolved via light.exe's
+         "-b installer" bind path (see scripts\build-installer.ps1) — no
+         Component/File authoring needed for these; light.exe embeds them
+         directly into the MSI's Icon/Binary tables at link time.
+
+         Two color variants ship for the banner and dialog (white / gray,
+         see installer\branding\). White is selected below to match
+         WiX_InstallDir's native light-theme chrome; swap the Value below
+         to the "-gray" filename to switch. -->
+    <Icon Id="ThumbsUpIcon.ico" SourceFile="branding\thumbsup.ico" />
+    <Property Id="ARPPRODUCTICON" Value="ThumbsUpIcon.ico" />
+
+    <WixVariable Id="WixUIBannerBmp" Value="branding\banner-white.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="branding\dialog-white.bmp" />
 
     <UI>
       <UIRef Id="WixUI_InstallDir" />
