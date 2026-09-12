@@ -6,6 +6,21 @@ recorded under the next planned version.
 
 ---
 
+## [v0.1.1] - 2026-09-11
+
+### Added
+
+- Added `docs/CONTRIBUTING.md` to document how external contributors can help, including a quick start path
+- Added `docs/ROADMAP.md` to explicitly reflect primary focus on community feedback
+- Added custom art to current MSI installer (i.e.`installer/branding/` contents)
+- In lieu of code signing upfront, added `SHA256SUMS.txt` support to releases and `docs/SIGNING.md` to document code signing strategy, explicitly
+
+### Fixed
+
+- `thumbsup-config.exe` now shows its custom art in File Explorer and in its dialog heading
+
+---
+
 ## [v0.1.0] - 2026-09-09
 
 ### Added
