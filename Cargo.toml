@@ -4,6 +4,7 @@ members = [
     "crates/thumbsup-core",
     "crates/thumbsup-shell",
     "crates/thumbsup-config",
+    "crates/thumbsup-extract",
 ]
 # Only the cross-platform core is built by default. The Windows-specific crates
 # build cleanly on a Windows host with `cargo build --workspace`; on other
