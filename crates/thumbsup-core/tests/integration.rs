@@ -5,7 +5,9 @@
 mod common;
 
 use common::*;
-use thumbsup_core::{extract_cover, extract_cover_with_deadline, CoverPolicy, EpubError};
+use thumbsup_core::{
+    extract_cover, extract_cover_bytes, extract_cover_with_deadline, CoverPolicy, EpubError,
+};
 
 const NO_LIMIT: u64 = u64::MAX;
 
@@ -66,7 +68,25 @@ fn epub_with_conventional_cover_id_only() {
 #[test]
 fn extract_cover_bytes_returns_original_jpeg() {
     let original_jpeg = solid_jpeg(800, 1200, [200, 50, 50]);
-    let bytes = epub3_with_cover_image_property_with_cover(&original_jpeg);
+    let opf = br#"<?xml version="1.0"?>
+    <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
+      <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+        <dc:identifier id="bookid">test-id</dc:identifier>
+        <dc:title>Test Book</dc:title>
+        <dc:language>en</dc:language>
+      </metadata>
+      <manifest>
+        <item id="cover-img" href="images/cover.jpg" media-type="image/jpeg" properties="cover-image"/>
+        <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+      </manifest>
+      <spine><itemref idref="nav"/></spine>
+    </package>"#;
+    let bytes = EpubBuilder::new()
+        .container_xml(standard_container())
+        .opf_xml(opf.to_vec())
+        .add_file("OEBPS/images/cover.jpg", original_jpeg.clone())
+        .add_file("OEBPS/nav.xhtml", b"<html/>".to_vec())
+        .build();
     let (extracted_bytes, _) = extract_cover_bytes(&bytes, CoverPolicy::Strict, u64::MAX).unwrap();
     assert_eq!(extracted_bytes, original_jpeg);
 }

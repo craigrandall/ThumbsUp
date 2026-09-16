@@ -24,7 +24,7 @@ const MAX_INNER_FILE_BYTES: u64 = 64 * 1024 * 1024;
 
 /// Hard cap on the number of entries in the archive's central directory.
 /// Lifted from the DarkThumbs project's [#5] bug, where pathological EPUBs
-/// with 5,000–10,000+ internal files crashed Explorer due to deep parser
+/// with 5,000-10,000+ internal files crashed Explorer due to deep parser
 /// recursion. Our streaming parsers don't recurse, but central-directory
 /// allocation still scales linearly with entry count, so we refuse to
 /// even open archives above this threshold.
@@ -87,7 +87,7 @@ impl Deadline {
 /// Diagnostic record produced for every extraction attempt. The shell
 /// extension forwards these into the optional log file consumed by the
 /// configuration GUI's diagnostics view.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ExtractionReport {
     /// EPUB version major as parsed from the OPF (2, 3, or 0 if unknown).
     pub epub_version_major: u8,
@@ -108,73 +108,45 @@ pub struct ExtractedCover {
     pub report: ExtractionReport,
 }
 
-/// Extract a cover from in-memory EPUB bytes and produce a thumbnail
-/// suitable for handing to `IThumbnailProvider`.
-///
-/// This is the simple, no-deadline entry point; it never aborts on
-/// time. Production callers (the shell-extension DLL) should use
-/// [`extract_cover_with_deadline`] instead so a malformed or
-/// pathologically slow EPUB cannot stall Windows Explorer.
-///
-/// - `bytes` — the full EPUB contents.
-/// - `max_side` — longest side (in pixels) the resulting thumbnail should occupy. The shell typically requests 32, 96, 256, or 1024.
-/// - `policy` — whether to fall back to "first image in manifest" when no compliant cover declaration is found.
-/// - `size_limit` — refuse to process EPUBs larger than this. Pass `u64::MAX` to disable.
-pub fn extract_cover(
-    bytes: &[u8],
-    max_side: u32,
-    policy: CoverPolicy,
-    size_limit: u64,
-) -> std::result::Result<ExtractedCover, (EpubError, ExtractionReport)> {
-    extract_cover_with_deadline(bytes, max_side, policy, size_limit, None)
-}
-
-/// Same as [`extract_cover`] but enforces a soft cooperative deadline.
-///
-/// `max_duration` is the wall-clock budget, measured from the moment
-/// this function is called. Once exceeded, the next deadline checkpoint
-/// returns [`EpubError::DeadlineExceeded`]. Pass `None` for no limit
-/// (equivalent to [`extract_cover`]).
-pub fn extract_cover_with_deadline(
-    bytes: &[u8],
-    max_side: u32,
-    policy: CoverPolicy,
-    size_limit: u64,
-    max_duration: Option<Duration>,
-) -> std::result::Result<ExtractedCover, (EpubError, ExtractionReport)> {
-    let deadline = match max_duration {
-        Some(d) => Deadline::new(d),
-        None => Deadline::unlimited(),
-    };
-    extract_inner(bytes, max_side, policy, size_limit, deadline)
-}
-
 /// Extract the original cover image bytes from an EPUB.
 ///
 /// Unlike [`extract_cover`], this returns the raw bytes without
 /// decoding, resizing, or color conversion. Suitable for library
 /// analysis where the original artifact is needed.
+///
+/// - `bytes` — the full EPUB contents.
+/// - `policy` — whether to fall back to "first image in manifest" when no compliant cover declaration is found.
+/// - `size_limit` — refuse to process EPUBs larger than this. Pass `u64::MAX` to disable.
 pub fn extract_cover_bytes(
     bytes: &[u8],
     policy: CoverPolicy,
     size_limit: u64,
 ) -> std::result::Result<(Vec<u8>, ExtractionReport), (EpubError, ExtractionReport)> {
-    let deadline = Deadline::unlimited();
-    let mut archive = zip::ZipArchive::new(Cursor::new(bytes))
-        .map_err(|e| (EpubError::from(e), ExtractionReport::default()))?;
-
-    // ... existing resolution logic (copy from extract_inner) until cover_bytes is read ...
-
-    Ok((cover_bytes, report))
+    extract_cover_bytes_with_deadline(bytes, policy, size_limit, None)
 }
 
-fn extract_inner(
+/// Same as [`extract_cover_bytes`] but enforces a soft cooperative deadline.
+pub fn extract_cover_bytes_with_deadline(
     bytes: &[u8],
-    max_side: u32,
+    policy: CoverPolicy,
+    size_limit: u64,
+    max_duration: Option<Duration>,
+) -> std::result::Result<(Vec<u8>, ExtractionReport), (EpubError, ExtractionReport)> {
+    let deadline = match max_duration {
+        Some(d) => Deadline::new(d),
+        None => Deadline::unlimited(),
+    };
+    extract_cover_bytes_inner(bytes, policy, size_limit, deadline)
+}
+
+/// Internal extraction that resolves and reads the cover bytes without
+/// producing a thumbnail. Shared by [`extract_cover_bytes`] and [`extract_cover`].
+fn extract_cover_bytes_inner(
+    bytes: &[u8],
     policy: CoverPolicy,
     size_limit: u64,
     deadline: Deadline,
-) -> std::result::Result<ExtractedCover, (EpubError, ExtractionReport)> {
+) -> std::result::Result<(Vec<u8>, ExtractionReport), (EpubError, ExtractionReport)> {
     let report_err = |err, strategy| {
         (
             err,
@@ -205,8 +177,6 @@ fn extract_inner(
     let mut archive = zip::ZipArchive::new(Cursor::new(bytes))
         .map_err(|e| report_err(EpubError::from(e), "open-zip"))?;
 
-    // Defense in depth: refuse pathological archives outright. See the
-    // MAX_ARCHIVE_ENTRIES doc-comment for the lesson behind this cap.
     if archive.len() > MAX_ARCHIVE_ENTRIES {
         return Err(report_err(
             EpubError::TooLarge {
@@ -225,8 +195,6 @@ fn extract_inner(
             } else {
                 "container-read"
             };
-            // Translate "file not in archive" into the more specific
-            // MissingContainer error category.
             let err = match e {
                 EpubError::CoverFileMissing(_) => EpubError::MissingContainer,
                 other => other,
@@ -255,27 +223,10 @@ fn extract_inner(
         .check()
         .map_err(|e| report_err(e, "deadline-post-opf-parse"))?;
 
-    // ------------------------------------------------------------------
-    // Cover-resolution priority. Order matters and is documented here so
-    // it stays in sync with the table in docs/ARCHITECTURE.md.
-    //
-    //   1. EPUB 3 manifest item with properties="cover-image"
-    //   2. EPUB 2 <meta name="cover" content="…"> manifest reference
-    //   3. Conventional manifest id ("cover", "cover-image", "ci")
-    //   4. <guide><reference type="thumbimagestandard" href="…"/>  (image)
-    //   5. <guide><reference type="cover" href="…"/>                (image)
-    //   6. <guide><reference type="cover" href="…"/>                (XHTML wrapper → first <img>)
-    //   7. First image item in manifest          (only with FirstImageFallback)
-    //
-    // 1–3 produce a ManifestItem; 4–6 produce only an href (no
-    // ManifestItem since the guide doesn't carry media-type); 7 produces
-    // a ManifestItem again. We funnel everything through a single
-    // (archive_path, declared_media_type, strategy_name) tuple.
-    // ------------------------------------------------------------------
+    // Cover-resolution priority.
     let opf_dir = dir_of(&opf_path).to_string();
     let mut found: Option<(String, String, &'static str)> = None;
 
-    // --- 1–3: manifest-based, spec / conventional. ---
     if let Ok(item) = pkg.resolve_cover(CoverPolicy::Strict) {
         let path = match resolve_href(&opf_dir, &item.href) {
             Ok(p) => p,
@@ -294,7 +245,6 @@ fn extract_inner(
         found = Some((path, item.media_type.clone(), classify_strategy(&pkg, item)));
     }
 
-    // --- 4: guide thumbimagestandard (always a direct image). ---
     if found.is_none() {
         if let Some(href) = pkg.guide_thumb_href.clone() {
             if href_looks_like_image(&href) {
@@ -305,7 +255,6 @@ fn extract_inner(
         }
     }
 
-    // --- 5–6: guide cover. Image directly, or XHTML wrapper we follow. ---
     if found.is_none() {
         if let Some(href) = pkg.guide_cover_href.clone() {
             if href_looks_like_image(&href) {
@@ -313,8 +262,6 @@ fn extract_inner(
                     found = Some((path, String::new(), "guide-cover-image"));
                 }
             } else {
-                // Assume XHTML wrapper. Read it, find the first <img src>,
-                // resolve that src relative to the XHTML's directory.
                 if let Ok(xhtml_path) = resolve_href(&opf_dir, &href) {
                     if let Ok(xhtml_bytes) = read_archive_file(&mut archive, &xhtml_path) {
                         if let Ok(img_src) = first_img_src(&xhtml_bytes) {
@@ -329,7 +276,6 @@ fn extract_inner(
         }
     }
 
-    // --- 7: first-image fallback (policy-gated). ---
     if found.is_none() && policy == CoverPolicy::FirstImageFallback {
         if let Some(item) = pkg.manifest.iter().find(|i| i.is_image()) {
             if let Ok(path) = resolve_href(&opf_dir, &item.href) {
@@ -376,15 +322,76 @@ fn extract_inner(
         )
     })?;
 
-    // 6. Decode → fit → BGRA.
+    Ok((
+        cover_bytes,
+        ExtractionReport {
+            epub_version_major: pkg.version_major,
+            strategy,
+            cover_path: Some(cover_path),
+            cover_media_type: Some(cover_media_type),
+        },
+    ))
+}
+
+/// Extract a cover from in-memory EPUB bytes and produce a thumbnail
+/// suitable for handing to `IThumbnailProvider`.
+///
+/// This is the simple, no-deadline entry point; it never aborts on
+/// time. Production callers (the shell-extension DLL) should use
+/// [`extract_cover_with_deadline`] instead so a malformed or
+/// pathologically slow EPUB cannot stall Windows Explorer.
+///
+/// - `bytes` — the full EPUB contents.
+/// - `max_side` — longest side (in pixels) the resulting thumbnail should occupy. The shell typically requests 32, 96, 256, or 1024.
+/// - `policy` — whether to fall back to "first image in manifest" when no compliant cover declaration is found.
+/// - `size_limit` — refuse to process EPUBs larger than this. Pass `u64::MAX` to disable.
+pub fn extract_cover(
+    bytes: &[u8],
+    max_side: u32,
+    policy: CoverPolicy,
+    size_limit: u64,
+) -> std::result::Result<ExtractedCover, (EpubError, ExtractionReport)> {
+    extract_cover_with_deadline(bytes, max_side, policy, size_limit, None)
+}
+
+/// Same as [`extract_cover`] but enforces a soft cooperative deadline.
+///
+/// `max_duration` is the wall-clock budget, measured from the moment
+/// this function is called. Once exceeded, the next deadline checkpoint
+/// returns [`EpubError::DeadlineExceeded`]. Pass `None` for no limit
+/// (equivalent to [`extract_cover`]).
+pub fn extract_cover_with_deadline(
+    bytes: &[u8],
+    max_side: u32,
+    policy: CoverPolicy,
+    size_limit: u64,
+    max_duration: Option<Duration>,
+) -> std::result::Result<ExtractedCover, (EpubError, ExtractionReport)> {
+    let deadline = match max_duration {
+        Some(d) => Deadline::new(d),
+        None => Deadline::unlimited(),
+    };
+    let (cover_bytes, report) = extract_cover_bytes_inner(bytes, policy, size_limit, deadline)?;
+    deadline.check().map_err(|e| {
+        (
+            e,
+            ExtractionReport {
+                epub_version_major: report.epub_version_major,
+                strategy: "deadline-post-cover-read",
+                cover_path: report.cover_path.clone(),
+                cover_media_type: report.cover_media_type.clone(),
+            },
+        )
+    })?;
+
     let thumbnail = prepare_thumbnail(&cover_bytes, max_side).map_err(|e| {
         (
             e,
             ExtractionReport {
-                epub_version_major: pkg.version_major,
+                epub_version_major: report.epub_version_major,
                 strategy: "image-decode",
-                cover_path: Some(cover_path.clone()),
-                cover_media_type: Some(cover_media_type.clone()),
+                cover_path: report.cover_path.clone(),
+                cover_media_type: report.cover_media_type.clone(),
             },
         )
     })?;
@@ -392,23 +399,15 @@ fn extract_inner(
         (
             e,
             ExtractionReport {
-                epub_version_major: pkg.version_major,
+                epub_version_major: report.epub_version_major,
                 strategy: "deadline-post-decode",
-                cover_path: Some(cover_path.clone()),
-                cover_media_type: Some(cover_media_type.clone()),
+                cover_path: report.cover_path.clone(),
+                cover_media_type: report.cover_media_type.clone(),
             },
         )
     })?;
 
-    Ok(ExtractedCover {
-        thumbnail,
-        report: ExtractionReport {
-            epub_version_major: pkg.version_major,
-            strategy,
-            cover_path: Some(cover_path),
-            cover_media_type: Some(cover_media_type),
-        },
-    })
+    Ok(ExtractedCover { thumbnail, report })
 }
 
 fn classify_strategy(pkg: &OpfPackage, item: &ManifestItem) -> &'static str {

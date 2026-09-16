@@ -28,7 +28,10 @@ pub mod opf;
 pub mod path;
 pub mod xhtml;
 
-pub use cover::{extract_cover, extract_cover_with_deadline, ExtractedCover, ExtractionReport};
+pub use cover::{
+    extract_cover, extract_cover_bytes, extract_cover_bytes_with_deadline,
+    extract_cover_with_deadline, ExtractedCover, ExtractionReport,
+};
 pub use error::{EpubError, Result};
 pub use image_ops::Thumbnail;
 pub use opf::CoverPolicy;
