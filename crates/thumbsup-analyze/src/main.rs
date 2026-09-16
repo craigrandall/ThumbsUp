@@ -12,16 +12,8 @@ use std::time::Instant;
 
 use clap::Parser;
 use serde::Serialize;
-use thumbsup_core::{CoverPolicy, EpubError};
+use thumbsup_core::CoverPolicy;
 use walkdir::WalkDir;
-
-/// Sanitize a string for use as a Windows filename by replacing invalid characters.
-fn sanitize_filename(name: &str) -> String {
-    const INVALID_CHARS: &[char] = &['<', '>', ':', '"', '|', '?', '*', '\\', '/'];
-    name.chars()
-        .map(|c| if INVALID_CHARS.contains(&c) { '_' } else { c })
-        .collect()
-}
 
 /// Command-line arguments for the analyzer.
 #[derive(Parser, Debug)]
@@ -191,15 +183,15 @@ fn main() -> Result<(), String> {
     }
 
     let processed_count = AtomicUsize::new(0);
-    let success_count = AtomicUsize::new(0);
-    let failure_count = AtomicUsize::new(0);
+    // let success_count = AtomicUsize::new(0);
+    // let failure_count = AtomicUsize::new(0);
     let total_start = Instant::now();
 
     // Collect strategy counts
     use std::collections::HashMap;
     use std::sync::Mutex;
-    let strategy_counts: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
-    let error_counts: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
+    // let strategy_counts: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
+    // let error_counts: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
 
     // Process each EPUB file
     for entry in walkdir {
