@@ -183,15 +183,7 @@ fn main() -> Result<(), String> {
     }
 
     let processed_count = AtomicUsize::new(0);
-    // let success_count = AtomicUsize::new(0);
-    // let failure_count = AtomicUsize::new(0);
     let total_start = Instant::now();
-
-    // Collect strategy counts
-    use std::collections::HashMap;
-    use std::sync::Mutex;
-    // let strategy_counts: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
-    // let error_counts: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::new());
 
     // Process each EPUB file
     for entry in walkdir {
@@ -206,8 +198,6 @@ fn main() -> Result<(), String> {
                 &processed_count,
                 &mut report_file,
             )?;
-
-            // Update summary counts would go here in a more complete implementation
         }
     }
 
