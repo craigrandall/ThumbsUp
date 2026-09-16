@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use clap::Parser;
 use serde::Serialize;
-use thumbsup_core::{CoverPolicy, EpubError, ExtractionReport};
+use thumbsup_core::CoverPolicy;
 use walkdir::WalkDir;
 
 /// Sanitize a string for use as a Windows filename by replacing invalid characters.
