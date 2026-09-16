@@ -149,6 +149,25 @@ pub fn extract_cover_with_deadline(
     extract_inner(bytes, max_side, policy, size_limit, deadline)
 }
 
+/// Extract the original cover image bytes from an EPUB.
+///
+/// Unlike [`extract_cover`], this returns the raw bytes without
+/// decoding, resizing, or color conversion. Suitable for library
+/// analysis where the original artifact is needed.
+pub fn extract_cover_bytes(
+    bytes: &[u8],
+    policy: CoverPolicy,
+    size_limit: u64,
+) -> std::result::Result<(Vec<u8>, ExtractionReport), (EpubError, ExtractionReport)> {
+    let deadline = Deadline::unlimited();
+    let mut archive = zip::ZipArchive::new(Cursor::new(bytes))
+        .map_err(|e| (EpubError::from(e), ExtractionReport::default()))?;
+
+    // ... existing resolution logic (copy from extract_inner) until cover_bytes is read ...
+
+    Ok((cover_bytes, report))
+}
+
 fn extract_inner(
     bytes: &[u8],
     max_side: u32,

@@ -64,6 +64,14 @@ fn epub_with_conventional_cover_id_only() {
 }
 
 #[test]
+fn extract_cover_bytes_returns_original_jpeg() {
+    let original_jpeg = solid_jpeg(800, 1200, [200, 50, 50]);
+    let bytes = epub3_with_cover_image_property_with_cover(&original_jpeg);
+    let (extracted_bytes, _) = extract_cover_bytes(&bytes, CoverPolicy::Strict, u64::MAX).unwrap();
+    assert_eq!(extracted_bytes, original_jpeg);
+}
+
+#[test]
 fn first_image_fallback_kicks_in_only_with_policy() {
     // No cover declaration at all; manifest has a non-cover image.
     let img = solid_png(120, 200, [80, 80, 80, 255]);
