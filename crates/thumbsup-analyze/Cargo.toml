@@ -1,0 +1,20 @@
+[package]
+name = "thumbsup-analyze"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "EPUB data quality analysis tool for digital library auditing"
+
+[[bin]]
+name = "thumbsup-analyze"
+path = "src/main.rs"
+
+[dependencies]
+thumbsup-core = { path = "../thumbsup-core" }
+clap = { version = "4.4", features = ["derive"] }
+walkdir = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
