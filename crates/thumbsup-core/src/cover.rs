@@ -1,9 +1,8 @@
-//! High-level "give me bytes, get a cover" entry point.
+//! High-level cover-resource extraction and thumbnail entry points.
 //!
-//! This module is the seam between the format parsers and the thumbnail
-//! handler. It accepts a byte slice (the entire EPUB read from the
-//! `IStream` Explorer hands us) and returns either a ready-to-display
-//! [`Thumbnail`] or a categorized [`EpubError`].
+//! This module is the seam between the format parsers and their consumers.
+//! It first resolves and reads the original cover resource, then optionally
+//! decodes and resizes that resource for the Windows thumbnail handler.
 
 use std::io::Cursor;
 use std::io::Read;
@@ -108,11 +107,14 @@ pub struct ExtractedCover {
     pub report: ExtractionReport,
 }
 
-/// Extract the original cover image bytes from an EPUB.
+/// Extract the original cover resource bytes from an EPUB.
 ///
-/// Unlike [`extract_cover`], this returns the raw bytes without
-/// decoding, resizing, or color conversion. Suitable for library
-/// analysis where the original artifact is needed.
+/// Unlike [`extract_cover`], this returns the selected archive member's raw
+/// bytes without decoding, resizing, or color conversion. The resource may
+/// be any image media type accepted by the EPUB cover-resolution logic; this
+/// API does not require it to be one of the raster formats that ThumbsUp can
+/// render as a Windows thumbnail. Consumers that need a rendered thumbnail
+/// should use [`extract_cover`], which applies the supported-format policy.
 ///
 /// - `bytes` — the full EPUB contents.
 /// - `policy` — whether to fall back to "first image in manifest" when no compliant cover declaration is found.

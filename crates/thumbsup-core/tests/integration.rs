@@ -92,6 +92,80 @@ fn extract_cover_bytes_returns_original_jpeg() {
 }
 
 #[test]
+fn extract_cover_bytes_returns_original_png() {
+    let original_png = solid_png(123, 456, [20, 40, 60, 255]);
+    let opf = br#"<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+  <metadata/>
+  <manifest>
+    <item id="cover-img" href="images/cover.png" media-type="image/png" properties="cover-image"/>
+  </manifest>
+</package>"#;
+    let bytes = EpubBuilder::new()
+        .container_xml(standard_container())
+        .opf_xml(opf.to_vec())
+        .add_file("OEBPS/images/cover.png", original_png.clone())
+        .build();
+
+    let (extracted, report) = extract_cover_bytes(&bytes, CoverPolicy::Strict, NO_LIMIT).unwrap();
+    assert_eq!(extracted, original_png);
+    assert_eq!(report.strategy, "epub3-cover-image");
+    assert_eq!(report.cover_path.as_deref(), Some("OEBPS/images/cover.png"));
+    assert_eq!(report.cover_media_type.as_deref(), Some("image/png"));
+}
+
+#[test]
+fn extract_cover_bytes_returns_original_gif() {
+    let original_gif = solid_gif(77, 88, [120, 80, 40, 255]);
+    let opf = br#"<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+  <metadata/>
+  <manifest>
+    <item id="cover-img" href="images/cover.gif" media-type="image/gif" properties="cover-image"/>
+  </manifest>
+</package>"#;
+    let bytes = EpubBuilder::new()
+        .container_xml(standard_container())
+        .opf_xml(opf.to_vec())
+        .add_file("OEBPS/images/cover.gif", original_gif.clone())
+        .build();
+
+    let (extracted, report) = extract_cover_bytes(&bytes, CoverPolicy::Strict, NO_LIMIT).unwrap();
+    assert_eq!(extracted, original_gif);
+    assert_eq!(report.strategy, "epub3-cover-image");
+    assert_eq!(report.cover_path.as_deref(), Some("OEBPS/images/cover.gif"));
+    assert_eq!(report.cover_media_type.as_deref(), Some("image/gif"));
+}
+
+#[test]
+fn extract_cover_bytes_preserves_non_raster_cover_resource() {
+    // Raw extraction preserves the selected cover resource even when the
+    // thumbnail renderer cannot decode it. The rendering limitation belongs
+    // to `extract_cover`, not to the original-artifact API.
+    let original_svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="20"></svg>"#;
+    let opf = br#"<?xml version="1.0"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+  <metadata/>
+  <manifest>
+    <item id="cover-img" href="images/cover.svg" media-type="image/svg+xml" properties="cover-image"/>
+  </manifest>
+</package>"#;
+    let bytes = EpubBuilder::new()
+        .container_xml(standard_container())
+        .opf_xml(opf.to_vec())
+        .add_file("OEBPS/images/cover.svg", original_svg.to_vec())
+        .build();
+
+    let (extracted, report) = extract_cover_bytes(&bytes, CoverPolicy::Strict, NO_LIMIT).unwrap();
+    assert_eq!(extracted, original_svg);
+    assert_eq!(report.cover_path.as_deref(), Some("OEBPS/images/cover.svg"));
+    assert_eq!(report.cover_media_type.as_deref(), Some("image/svg+xml"));
+
+    let thumbnail = extract_cover(&bytes, 256, CoverPolicy::Strict, NO_LIMIT);
+    assert!(matches!(thumbnail, Err((EpubError::ImageDecode(_), _))));
+}
+
+#[test]
 fn first_image_fallback_kicks_in_only_with_policy() {
     // No cover declaration at all; manifest has a non-cover image.
     let img = solid_png(120, 200, [80, 80, 80, 255]);

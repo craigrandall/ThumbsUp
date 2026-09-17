@@ -33,5 +33,7 @@ pub use cover::{
     extract_cover_with_deadline, ExtractedCover, ExtractionReport,
 };
 pub use error::{EpubError, Result};
-pub use image_ops::Thumbnail;
+pub use image_ops::{
+    decode_cover, detect_image_format, image_dimensions, image_format_name, ImageFormat, Thumbnail,
+};
 pub use opf::CoverPolicy;

@@ -131,6 +131,16 @@ pub fn solid_jpeg(w: u32, h: u32, color: [u8; 3]) -> Vec<u8> {
     out
 }
 
+/// A small synthetic GIF of the requested dimensions and solid color.
+pub fn solid_gif(w: u32, h: u32, color: [u8; 4]) -> Vec<u8> {
+    let img: ImageBuffer<Rgba<u8>, _> = ImageBuffer::from_fn(w, h, |_, _| Rgba(color));
+    let mut out = Vec::new();
+    image::DynamicImage::ImageRgba8(img)
+        .write_to(&mut Cursor::new(&mut out), ImageFormat::Gif)
+        .unwrap();
+    out
+}
+
 /// Convenience: a complete EPUB 3 with a `properties="cover-image"` cover.
 pub fn epub3_with_cover_image_property() -> Vec<u8> {
     let cover = solid_jpeg(800, 1200, [200, 50, 50]);

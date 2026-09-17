@@ -7,7 +7,8 @@
 
 use crate::error::{EpubError, Result};
 use image::imageops::FilterType;
-use image::{DynamicImage, GenericImageView, ImageFormat};
+pub use image::ImageFormat;
+use image::{DynamicImage, GenericImageView};
 
 /// A decoded, resized cover ready to be uploaded to a Windows DIB.
 ///
@@ -35,12 +36,32 @@ impl Thumbnail {
     }
 }
 
+/// Detect the image container format from its magic bytes.
+///
+/// This intentionally reports the format found in the bytes rather than
+/// trusting the EPUB manifest media type. Callers that need to render the
+/// image should still use [`decode_cover`], which applies ThumbsUp's
+/// supported-format policy.
+pub fn detect_image_format(bytes: &[u8]) -> Result<ImageFormat> {
+    image::guess_format(bytes).map_err(|e| EpubError::ImageDecode(e.to_string()))
+}
+
+/// Return a stable lowercase name for an image format detected from bytes.
+pub fn image_format_name(format: ImageFormat) -> String {
+    match format {
+        ImageFormat::Jpeg => "jpeg".to_string(),
+        ImageFormat::Png => "png".to_string(),
+        ImageFormat::Gif => "gif".to_string(),
+        other => format!("{other:?}").to_ascii_lowercase(),
+    }
+}
+
 /// Decode arbitrary cover bytes (JPEG / PNG / GIF) into a `DynamicImage`,
 /// rejecting formats we don't support.
 pub fn decode_cover(bytes: &[u8]) -> Result<DynamicImage> {
     // Sniff the format from the magic bytes rather than trusting the
     // declared media-type, since some EPUBs lie about it.
-    let format = image::guess_format(bytes).map_err(|e| EpubError::ImageDecode(e.to_string()))?;
+    let format = detect_image_format(bytes)?;
     match format {
         ImageFormat::Jpeg | ImageFormat::Png | ImageFormat::Gif => {}
         other => {
@@ -51,6 +72,12 @@ pub fn decode_cover(bytes: &[u8]) -> Result<DynamicImage> {
     }
     image::load_from_memory_with_format(bytes, format)
         .map_err(|e| EpubError::ImageDecode(e.to_string()))
+}
+
+/// Return the intrinsic dimensions of a supported cover image without
+/// resizing it.
+pub fn image_dimensions(bytes: &[u8]) -> Result<(u32, u32)> {
+    Ok(decode_cover(bytes)?.dimensions())
 }
 
 /// Resize so that the longer side is at most `max_side`, preserving aspect
@@ -123,6 +150,19 @@ mod tests {
             .write_to(&mut std::io::Cursor::new(&mut out), ImageFormat::Jpeg)
             .unwrap();
         out
+    }
+
+    #[test]
+    fn detect_image_format_reports_png() {
+        let bytes = synth_png(10, 20, [255, 0, 0, 255]);
+        assert_eq!(detect_image_format(&bytes), Ok(ImageFormat::Png));
+        assert_eq!(image_format_name(ImageFormat::Png), "png");
+    }
+
+    #[test]
+    fn image_dimensions_reports_original_dimensions() {
+        let bytes = synth_png(123, 456, [255, 0, 0, 255]);
+        assert_eq!(image_dimensions(&bytes).unwrap(), (123, 456));
     }
 
     #[test]
