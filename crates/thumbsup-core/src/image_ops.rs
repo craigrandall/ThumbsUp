@@ -142,6 +142,7 @@ mod tests {
         out
     }
 
+    /// Build a tiny JPEG in-memory for testing without committing fixtures.
     fn synth_jpeg(w: u32, h: u32, color: [u8; 3]) -> Vec<u8> {
         let img: ImageBuffer<image::Rgb<u8>, _> =
             ImageBuffer::from_fn(w, h, |_, _| image::Rgb(color));
@@ -155,8 +156,15 @@ mod tests {
     #[test]
     fn detect_image_format_reports_png() {
         let bytes = synth_png(10, 20, [255, 0, 0, 255]);
-        assert_eq!(detect_image_format(&bytes), Ok(ImageFormat::Png));
+        assert_eq!(detect_image_format(&bytes).unwrap(), ImageFormat::Png);
         assert_eq!(image_format_name(ImageFormat::Png), "png");
+    }
+
+    #[test]
+    fn detect_image_format_reports_jpeg() {
+        let bytes = synth_jpeg(40, 60, [10, 20, 30]);
+        assert_eq!(detect_image_format(&bytes).unwrap(), ImageFormat::Jpeg);
+        assert_eq!(image_format_name(ImageFormat::Jpeg), "jpeg");
     }
 
     #[test]
