@@ -20,6 +20,28 @@ use serde::Serialize;
 use thumbsup_core::{detect_image_format, image_format_name, CoverPolicy, ImageFormat};
 use walkdir::WalkDir;
 
+/// Command-line arguments for the extractor.
+#[derive(Parser, Debug)]
+#[command(name = "thumbsup-extract")]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Directory containing EPUB files to process.
+    #[arg(short, long)]
+    input: PathBuf,
+
+    /// Directory to write extracted cover images.
+    #[arg(short, long)]
+    output: PathBuf,
+
+    /// Recursively search subdirectories for EPUB files.
+    #[arg(short, long, default_value = "false")]
+    recursive: bool,
+
+    /// Cover extraction policy: 'strict' or 'fallback'.
+    #[arg(short, long, default_value = "strict")]
+    policy: String,
+}
+
 /// Sanitize a string for use as a Windows filename by replacing invalid characters.
 fn sanitize_filename(name: &str) -> String {
     const INVALID_CHARS: &[char] = &['<', '>', ':', '"', '|', '?', '*', '\\', '/'];
