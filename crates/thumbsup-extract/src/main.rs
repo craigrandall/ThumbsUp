@@ -114,15 +114,6 @@ struct ExtractionResult {
     error_category: Option<String>,
 }
 
-fn format_name(format: ImageFormat) -> String {
-    match format {
-        ImageFormat::Jpeg => "jpeg".to_string(),
-        ImageFormat::Png => "png".to_string(),
-        ImageFormat::Gif => "gif".to_string(),
-        other => format!("{other:?}").to_ascii_lowercase(),
-    }
-}
-
 /// Process a single EPUB file and write its cover to the output directory.
 fn process_epub(
     epub_path: &Path,
