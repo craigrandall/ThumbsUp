@@ -27,7 +27,56 @@ input.
   entries are refused outright (defense against the file-count DoS class
   documented in the DarkThumbs project's bug tracker).
 
-## Cover resolution priority
+## Project Structure
+
+ThumbsUp consists of a core library and multiple frontends:
+
+```
+thumbsup-shell/
+├── Cargo.toml                          # Workspace root
+├── crates/
+│   ├── thumbsup-core/                   # Cross-platform EPUB parsing & extraction
+│   │                                      (authoritative for cover identification)
+│   ├── thumbsup-extract/                # Batch cover extraction CLI
+│   ├── thumbsup-analyze/                # Corpus analysis CLI
+│   ├── thumbsup-shell/                  # Shell extension DLL
+│   └── thumbsup-config/                 # Configuration GUI
+```
+
+### Core Library (`thumbsup-core`)
+
+The authoritative source for all EPUB parsing and cover extraction. Implements:
+
+* `extract_cover()` — produces Windows thumbnails (BGRA8)
+* `extract_cover_bytes()` — produces original cover bytes without decoding
+* Cover resolution with 7-tier priority strategy
+* Defense-in-depth size and entry limits
+* Path traversal protection
+
+### Batch Tools
+
+**`thumbsup-extract`** — Batch extract original cover images from EPUB corpus
+
+```bash
+thumbsup-extract --input /path/to/epubs --output /path/to/covers --recursive
+```
+
+Produces:
+* Extracted cover files with correct extensions (jpg/png/gif)
+* `manifest.jsonl` with provenance metadata
+* Deterministic output paths preserving relative directory structure
+
+**`thumbsup-analyze`** — Analyze EPUB corpus for cover metadata
+
+```bash
+thumbsup-analyze --input /path/to/epubs --output /path/to/reports --recursive
+```
+
+Produces:
+* `report.jsonl` with per-EPUB cover statistics
+* Original dimensions, byte sizes, formats, extraction strategies
+
+## Cover Resolution Priority
 
 The pipeline tries strategies in this order; the first hit wins.
 
@@ -40,6 +89,18 @@ The pipeline tries strategies in this order; the first hit wins.
 | 5 | `<guide><reference type="cover">` (image href)   | OPF guide                         |
 | 6 | `<guide><reference type="cover">` (XHTML wrapper)| Read XHTML, find first `<img src>`|
 | 7 | First image item in manifest                     | Only when policy allows           |
+
+Here's the same table with a different cell-based explanation:
+
+| # | Strategy               | Source                                                          |
+|---|------------------------|-----------------------------------------------------------------|
+| 1 | `epub3-cover-image`    | Manifest item with `properties="cover-image"`                   |
+| 2 | `epub2-meta-cover`     | `<meta name="cover" content="X">` → manifest item id="X"        |
+| 3 | `conventional-id`      | Manifest item with id `cover`, `cover-image`, `ci`, …           |
+| 4 | `guide-thumb`          | `<guide><reference type="thumbimagestandard" href="…"/>`        |
+| 5 | `guide-cover-image`    | `<guide><reference type="cover" href="…"/>` (image href)        |
+| 6 | `guide-cover-xhtml`    | `<guide><reference type="cover" href="…"/>` (XHTML wrapper)     |
+| 7 | `first-image-fallback` | First image in manifest (only with `FirstImageFallback` policy) |
 
 ## Layout
 
@@ -57,7 +118,18 @@ thumbsup-shell/
 │   │   │   ├── error.rs
 │   │   │   └── lib.rs
 │   │   └── tests/                   # Integration tests + fixture builder
-│   ├── thumbsup-shell/            # The shell extension DLL (Windows-only)
+│   │
+│   ├── thumbsup-extract/              # Batch cover extraction
+│   │   ├── src/
+│   │   │   └── main.rs
+│   │   └── Cargo.toml
+│   │
+│   ├── thumbsup-analyze/              # Corpus analysis
+│   │   ├── src/
+│   │   │   └── main.rs
+│   │   └── Cargo.toml
+│   │
+│   ├── thumbsup-shell/                # Shell extension DLL (Windows-only)
 │   │   ├── src/
 │   │   │   ├── lib.rs               # DllMain, DllGetClassObject, …
 │   │   │   ├── com.rs               # IThumbnailProvider + IClassFactory
@@ -69,6 +141,7 @@ thumbsup-shell/
 │   │   │   └── clsid.rs             # CLSID + well-known constants
 │   │   ├── exports.def
 │   │   └── build.rs
+│   │
 │   └── thumbsup-config/           # GUI configuration tool (eframe/egui)
 │       └── src/
 │           ├── main.rs
@@ -87,7 +160,12 @@ thumbsup-shell/
 └── docs/
     ├── ARCHITECTURE.md
     ├── INSTALL.md
-    └── SECURITY.md
+    ├── SECURITY.md
+    ├── CONTRIBUTING.md
+    ├── ROADMAP.md
+    ├── SIGNING.md
+    ├── LESSONS-FROM-DARKTHUMBS.md
+    └── LESSONS-FROM-ICAROS.md
 ```
 
 ## Building
@@ -108,16 +186,15 @@ If you're setting up fresh, see `docs/INSTALL.md` for the step-by-step.
 cargo test -p thumbsup-core
 ```
 
-This runs **79 tests** (51 unit, 28 integration) covering both EPUB
+This runs **79+ tests** (51+ unit, 28+ integration) covering both EPUB
 versions, malformed inputs, path traversal, image-format whitelisting,
 guide-element fallbacks, non-ASCII filenames, deadline enforcement,
-and end-to-end extraction.
+and end-to-end extraction including raw byte preservation.
 
 ### Build the DLL and GUI (Windows)
 
 ```powershell
-cargo build --release --target x86_64-pc-windows-msvc `
-  -p thumbsup-shell -p thumbsup-config
+cargo build --release --target x86_64-pc-windows-msvc -p thumbsup-shell -p thumbsup-config
 ```
 
 Outputs:
@@ -125,7 +202,7 @@ Outputs:
 * `target\x86_64-pc-windows-msvc\release\thumbsup_shell.dll`
 * `target\x86_64-pc-windows-msvc\release\thumbsup-config.exe`
 
-The first build takes 3–5 minutes because the `windows`,
+The first build takes 3-5 minutes because the `windows`,
 `windows-implement`, `windows-core`, and `image` crates compile from
 source. Subsequent builds are incremental.
 
@@ -140,6 +217,17 @@ Produces `ThumbsUp.msi`. Code-sign before distribution:
 ```powershell
 signtool.exe sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /a ThumbsUp.msi
 ```
+
+### Build the batch tools (any OS)
+
+```bash
+cargo build --release -p thumbsup-extract -p thumbsup-analyze
+```
+
+Outputs:
+
+* `target/release/thumbsup-extract` (or `.exe` on Windows)
+* `target/release/thumbsup-analyze` (or `.exe` on Windows)
 
 ## Installing
 
@@ -181,7 +269,6 @@ no Explorer restart required.
   still mutex-guarded as defense in depth.
 
 See `docs/SECURITY.md` for the full threat model.
-
 
 ## Contributing
 

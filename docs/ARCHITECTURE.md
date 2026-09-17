@@ -1,6 +1,6 @@
 # Architecture
 
-The project is split into three crates that communicate only through
+The project is split into multiple crates that communicate only through
 well-defined data types — no shared globals, no leaking implementation
 detail across boundaries.
 
@@ -15,13 +15,27 @@ detail across boundaries.
        ┌───────────────┴───────────────┐
        │                               │
 ┌──────────────┐               ┌─────────────────┐
-│ epub-thumb…  │               │ epub-thumb-     │
-│ -nailer      │               │ config          │
-│ (Windows)    │               │ (Windows)       │
+│ thumbsup-    │               │ thumbsup-       │
+│ extract      │               │ analyze         │
+│ (any OS)     │               │ (any OS)        │
 │              │               │                 │
-│ DLL inside   │               │ exe with egui   │
-│ Explorer     │               │ UI for users    │
+│ CLI tool     │               │ CLI tool        │
 └──────────────┘               └─────────────────┘
+       │                               │
+       └───────────────────────────────────────┘
+                       ▲
+                       │ links
+                       │
+              ┌────────────────────────┐
+              │ thumbsup-shell         │
+              │ (Windows-only)          │
+              │ DLL inside Explorer     │
+              └────────────────────────┘
+              ┌────────────────────────┐
+              │ thumbsup-config         │
+              │ (Windows)               │
+              │ GUI for users           │
+              └────────────────────────┘
 ```
 
 ## `thumbsup-core`
@@ -89,6 +103,60 @@ The cover pipeline applies three independent size limits:
   ZIP is opened. Real-world EPUBs have at most a few hundred entries.
 * `MAX_INNER_FILE_BYTES = 64 MiB` (hard) on every individual archive
   member read, defending against zip-bomb amplification.
+
+## `thumbsup-extract`
+
+Batch EPUB cover image extractor. Thin CLI consumer of `thumbsup-core`.
+
+### Purpose
+Extracts original cover image bytes from EPUB files without decoding,
+resizing, or color conversion. Designed for corpus analysis and research.
+
+### Key Properties
+- **Deterministic output paths**: Source path is always relative to `--input`; recursive extraction preserves relative directory structure
+- **Format fidelity**: Extension derived from actual bytes, never from OPF declaration
+- **Supported formats**: Only JPEG, PNG, GIF are written; others produce explicit errors
+- **Provenance**: Generates `manifest.jsonl` with extraction metadata
+
+### Architecture
+```
+EPUB files
+   ↓
+thumbsup-core::extract_cover_bytes()
+   ↓
+Original cover bytes + ExtractionReport
+   ↓
+Write to output directory with correct extension
+   ↓
+manifest.jsonl
+```
+
+## `thumbsup-analyze`
+
+EPUB corpus analysis tool. Thin CLI consumer of `thumbsup-core`.
+
+### Purpose
+Analyzes EPUB files to produce structured reports on cover metadata,
+quality, and extraction statistics.
+
+### Key Properties
+- **Original artifact analysis**: Reports intrinsic properties of source covers, not resized thumbnails
+- **Comprehensive metrics**: Cover presence, strategies, formats, dimensions, byte sizes
+- **Error tracking**: Captures extraction failures and format mismatches
+- **Read-only**: Does not modify any files
+
+### Architecture
+```
+EPUB files
+   ↓
+thumbsup-core::extract_cover_bytes()
+   ↓
+Original cover bytes
+   ↓
+Decode for analysis (dimensions, format, size)
+   ↓
+report.jsonl with per-EPUB statistics
+```
 
 ## `thumbsup-shell`
 

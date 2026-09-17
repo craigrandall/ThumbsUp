@@ -6,6 +6,72 @@ recorded under the next planned version.
 
 ---
 
+## [v0.1.2] - 2026-09-16
+
+### Added
+
+- **New crates:**
+  - `thumbsup-extract` — Batch CLI tool for extracting original cover images from EPUB corpus
+  - `thumbsup-analyze` — Batch CLI tool for analyzing EPUB corpus and reporting cover metadata
+
+- **New core API:**
+  - `extract_cover_bytes()` — Returns original cover resource bytes without decoding or conversion
+  - `extract_cover_bytes_with_deadline()` — Same as above with cooperative timeout
+  - `detect_image_format()` — Detects image format from raw bytes (JPEG/PNG/GIF)
+  - `image_dimensions()` — Returns width/height from raw image bytes
+  - `image_format_name()` — Returns human-readable format name
+
+- **Workspace updates:**
+  - Added `thumbsup-extract` and `thumbsup-analyze` as workspace members
+  - Both new crates depend on `thumbsup-core` only
+
+### Changed
+
+- **Architecture:** Formalized three-stage model in `thumbsup-core`:
+  1. `identify_cover()` — EPUB → resolved cover resource + report
+  2. `extract_cover_bytes()` — EPUB → original cover bytes + report
+  3. `prepare_thumbnail()` — cover bytes → Windows-oriented Thumbnail
+
+- **`thumbsup-extract` behavior:**
+  - Source paths computed relative to `--input` directory (not output directory parent)
+  - Output preserves relative directory structure under `--output`
+  - Format extension derived from actual bytes via `detect_image_format()`
+  - Only JPEG/PNG/GIF formats are written; others produce explicit `unsupported-cover-format` errors
+  - No existence-dependent collision handling (deterministic naming)
+  - Generates `manifest.jsonl` with full provenance metadata
+
+- **`thumbsup-analyze` behavior:**
+  - Uses `extract_cover_bytes()` instead of `extract_cover()` (analyzes original artifacts, not thumbnails)
+  - Reports original dimensions, byte sizes, and formats (not resized thumbnail properties)
+  - Generates `report.jsonl` with per-EPUB statistics
+  - Tracks extraction strategies, media types, format discrepancies
+
+### Fixed
+
+- **`thumbsup-extract` source path calculation:** Previously used `output_dir.parent()` which was incorrect; now uses `input_dir` as documented
+- **Extension fallback removed:** Previously fell back to `.jpg` for unknown formats; now returns explicit error for unsupported formats
+- **Format detection:** Now uses byte-based detection (`detect_image_format`) instead of relying on OPF declaration
+- **Recursive output:** Now preserves relative directory structure deterministically
+- **Integration tests:** Added tests for PNG, GIF, and non-raster cover resource byte preservation
+
+### Technical Details
+
+- **P0 corrections implemented:**
+  1. Fixed source-relative-path calculation using `epub_path.strip_prefix(input_dir)`
+  2. Eliminated fake `.jpg` extension fallback; explicit error for unsupported formats
+  3. Established explicit contract: only JPEG/PNG/GIF are supported for extraction output
+  4. Made recursive output naming deterministic by preserving relative paths
+  5. Added integration tests: `extract_cover_bytes_returns_original_png`, `extract_cover_bytes_returns_original_gif`, `extract_cover_bytes_preserves_non_raster_cover_resource`
+
+- **P1 architectural alignment implemented:**
+  6. `thumbsup-analyze` uses `extract_cover_bytes()` (not `extract_cover()`)
+  7. Analysis reports original image properties (not resized thumbnail dimensions)
+  8. `ExtractionReport` preserved as common provenance record
+  9. Both tools remain separate thin applications
+  10. No new abstraction crate introduced
+
+---
+
 ## [v0.1.1] - 2026-09-11
 
 ### Added
